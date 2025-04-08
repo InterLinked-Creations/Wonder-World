@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Minecraft-Style World with Collision</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #info {
+        position: absolute;
+        top: 0;
+        width: 100%;
+        color: #fff;
+        font-family: sans-serif;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      Click to play – WASD to move, SPACE to jump. Left click to break, right click to
+      place blocks.
+    </div>
+    <!-- Load Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- ImprovedNoise (Perlin noise implementation) -->
+    <script>
+      /**
+       * ImprovedNoise based on Ken Perlin’s improved noise algorithm.
+       * Produces a smoothly interpolated noise value.
+       */
+      var ImprovedNoise = function () {
+        var p = [
+          151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7,
+          225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6,
+          148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35,
+          11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171,
+          168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231,
+          83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245,
+          40, 244, 102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132,
+          187, 208, 89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164,
+          100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123, 5, 202,
+          38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58,
+          17, 182, 189, 28, 42, 223, 183, 170, 213, 119, 248, 152, 2, 44, 154,
+          163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19,
+          98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97,
+          228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81,
+          51, 145, 235, 249, 14, 239, 107, 49, 192, 214, 31, 181, 199, 106,
+          157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236,
+          205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215,
+          61, 156, 180
+        ];
+        var permutation = new Array(512);
+        for (var i = 0; i < 256; i++) {
+          permutation[i] = p[i];
+          permutation[i + 256] = p[i];
+        }
+        function fade(t) {
+          return t * t * t * (t * (t * 6 - 15) + 10);
+        }
+        function lerp(t, a, b) {
+          return a + t * (b - a);
+        }
+        function grad(hash, x, y, z) {
+          var h = hash & 15;
+          var u = h < 8 ? x : y;
+          var v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+          return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+        }
+        return {
+          noise: function (x, y, z) {
+            var floorX = Math.floor(x),
+              floorY = Math.floor(y),
+              floorZ = Math.floor(z);
+            var X = floorX & 255,
+              Y = floorY & 255,
+              Z = floorZ & 255;
+            x -= floorX;
+            y -= floorY;
+            z -= floorZ;
+            var u = fade(x),
+              v = fade(y),
+              w = fade(z);
+            var A = permutation[X] + Y,
+              AA = permutation[A] + Z,
+              AB = permutation[A + 1] + Z;
+            var B = permutation[X + 1] + Y,
+              BA = permutation[B] + Z,
+              BB = permutation[B + 1] + Z;
+            return lerp(
+              w,
+              lerp(
+                v,
+                lerp(u, grad(permutation[AA], x, y, z), grad(permutation[BA], x - 1, y, z)),
+                lerp(u, grad(permutation[AB], x, y - 1, z), grad(permutation[BB], x - 1, y - 1, z))
+              ),
+              lerp(
+                v,
+                lerp(u, grad(permutation[AA + 1], x, y, z - 1), grad(permutation[BA + 1], x - 1, y, z - 1)),
+                lerp(u, grad(permutation[AB + 1], x, y - 1, z - 1), grad(permutation[BB + 1], x - 1, y - 1, z - 1))
+              )
+            );
+          }
+        };
+      };
+    </script>
+
+    <!-- Main Game Script -->
+    <script>
+      /********************************************
+       * Global Constants & Variables
+       ********************************************/
+      const CHUNK_SIZE = 16;        // Blocks wide/deep per chunk
+      const WORLD_HEIGHT = 32;        // Vertical blocks per chunk
+      const WORLD_CHUNK_COUNT = 50;   // World grid: 50 x 50 chunks
+      const VISIBLE_RADIUS = 5;       // Load chunks within 5 chunks of the player
+
+      let scene, renderer;
+      let camera, yawObject, pitchObject;
+      let controlsEnabled = false;
+
+      // Movement state
+      let velocity = new THREE.Vector3();
+      let direction = new THREE.Vector3();
+      let moveForward = false,
+          moveBackward = false,
+          moveLeft = false,
+          moveRight = false;
+      let canJump = false;
+      let prevTime = performance.now();
+
+      // Dictionaries to store chunk meshes and block data
+      let loadedChunks = {};    // keys: "cx,cz" -> mesh
+      let chunkDataStore = {};  // keys: "cx,cz" -> block data (3D array)
+
+      // Noise generator for smooth terrain.
+      const noiseGenerator = new ImprovedNoise();
+
+      // For raycasting block interactions.
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+
+      /********************************************
+       * Player Collision Constants & Helpers
+       ********************************************/
+      const playerWidth = 0.6;
+      const playerHeight = 1.8;
+      const playerDepth = 0.6;
+
+      // Returns a THREE.Box3 representing the player's bounding volume.
+      function getPlayerAABB() {
+        const pos = yawObject.position;
+        return new THREE.Box3(
+          new THREE.Vector3(pos.x - playerWidth / 2, pos.y, pos.z - playerDepth / 2),
+          new THREE.Vector3(pos.x + playerWidth / 2, pos.y + playerHeight, pos.z + playerDepth / 2)
+        );
+      }
+
+      // Check if the player's AABB intersects any solid block.
+      function collides() {
+        const aabb = getPlayerAABB();
+        // Determine the range of block coordinates to check.
+        const minX = Math.floor(aabb.min.x);
+        const minY = Math.floor(aabb.min.y);
+        const minZ = Math.floor(aabb.min.z);
+        const maxX = Math.floor(aabb.max.x);
+        const maxY = Math.floor(aabb.max.y);
+        const maxZ = Math.floor(aabb.max.z);
+        for (let x = minX; x <= maxX; x++) {
+          for (let y = minY; y <= maxY; y++) {
+            for (let z = minZ; z <= maxZ; z++) {
+              if (getBlockAt(x, y, z)) {
+                // Create a box for the block and test for intersection.
+                let blockAABB = new THREE.Box3(
+                  new THREE.Vector3(x, y, z),
+                  new THREE.Vector3(x + 1, y + 1, z + 1)
+                );
+                if (aabb.intersectsBox(blockAABB)) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        return false;
+      }
+
+      // Given a set of global coordinates, returns the block value (1 for solid, 0 for air).
+      function getBlockAt(globalX, globalY, globalZ) {
+        // Out-of-bound vertically.
+        if (globalY < 0 || globalY >= WORLD_HEIGHT) return 0;
+        const cx = Math.floor(globalX / CHUNK_SIZE);
+        const cz = Math.floor(globalZ / CHUNK_SIZE);
+        // If the chunk is not loaded (or outside world bounds), assume air.
+        if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) return 0;
+        const key = `${cx},${cz}`;
+        const chunkData = chunkDataStore[key];
+        if (!chunkData) return 0;
+        const localX = globalX - cx * CHUNK_SIZE;
+        const localZ = globalZ - cz * CHUNK_SIZE;
+        // Ensure indices are within block grid.
+        if (localX < 0 || localX >= CHUNK_SIZE || localZ < 0 || localZ >= CHUNK_SIZE) return 0;
+        return chunkData[localX][globalY][localZ];
+      }
+
+      /********************************************
+       * Cube Face Data (for mesh face culling)
+       ********************************************/
+      const faces = [
+        {
+          // Left face (-X)
+          dir: [-1, 0, 0],
+          vertices: [
+            [0, 0, 1],
+            [0, 1, 1],
+            [0, 1, 0],
+            [0, 0, 0],
+          ],
+        },
+        {
+          // Right face (+X)
+          dir: [1, 0, 0],
+          vertices: [
+            [1, 0, 0],
+            [1, 1, 0],
+            [1, 1, 1],
+            [1, 0, 1],
+          ],
+        },
+        {
+          // Bottom face (-Y)
+          dir: [0, -1, 0],
+          vertices: [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 0, 1],
+            [0, 0, 1],
+          ],
+        },
+        {
+          // Top face (+Y)
+          dir: [0, 1, 0],
+          vertices: [
+            [0, 1, 1],
+            [1, 1, 1],
+            [1, 1, 0],
+            [0, 1, 0],
+          ],
+        },
+        {
+          // Back face (-Z)
+          dir: [0, 0, -1],
+          vertices: [
+            [1, 0, 0],
+            [0, 0, 0],
+            [0, 1, 0],
+            [1, 1, 0],
+          ],
+        },
+        {
+          // Front face (+Z)
+          dir: [0, 0, 1],
+          vertices: [
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+          ],
+        },
+      ];
+
+      /********************************************
+       * World Generation Functions
+       ********************************************/
+      // Height function using improved noise.
+      function getHeight(globalX, globalZ) {
+        const frequency = 0.05;
+        let noiseVal = noiseGenerator.noise(globalX * frequency, 0, globalZ * frequency);
+        return Math.floor(((noiseVal + 1) / 2) * (WORLD_HEIGHT - 1));
+      }
+
+      // Generates block data (a 3D array) for a chunk at chunk coordinates (cx, cz).
+      function generateChunkData(cx, cz) {
+        const data = [];
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          data[x] = [];
+          for (let y = 0; y < WORLD_HEIGHT; y++) {
+            data[x][y] = [];
+            for (let z = 0; z < CHUNK_SIZE; z++) {
+              const globalX = cx * CHUNK_SIZE + x;
+              const globalZ = cz * CHUNK_SIZE + z;
+              let h = getHeight(globalX, globalZ);
+              data[x][y][z] = (y <= h) ? 1 : 0;
+            }
+          }
+        }
+        return data;
+      }
+
+      // Utility: get block value from chunk data (returns 0 if indices are out of range)
+      function getBlockInChunk(chunkData, x, y, z) {
+        if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE)
+          return 0;
+        return chunkData[x][y][z];
+      }
+
+      // Build BufferGeometry for a chunk with world-offset.
+      function buildChunkGeometry(chunkData, cx, cz) {
+        const vertices = [];
+        const indices = [];
+        const uvs = [];
+        let vertexCount = 0;
+
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          for (let y = 0; y < WORLD_HEIGHT; y++) {
+            for (let z = 0; z < CHUNK_SIZE; z++) {
+              if (chunkData[x][y][z] !== 0) {
+                for (let f = 0; f < faces.length; f++) {
+                  const face = faces[f];
+                  const nx = x + face.dir[0];
+                  const ny = y + face.dir[1];
+                  const nz = z + face.dir[2];
+                  if (getBlockInChunk(chunkData, nx, ny, nz) !== 0) continue;
+                  // Add vertices in global coordinates.
+                  for (let i = 0; i < 4; i++) {
+                    const vertex = face.vertices[i];
+                    vertices.push(
+                      cx * CHUNK_SIZE + x + vertex[0],
+                      y + vertex[1],
+                      cz * CHUNK_SIZE + z + vertex[2]
+                    );
+                  }
+                  uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+                  indices.push(
+                    vertexCount, vertexCount + 1, vertexCount + 2,
+                    vertexCount, vertexCount + 2, vertexCount + 3
+                  );
+                  vertexCount += 4;
+                }
+              }
+            }
+          }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+      }
+
+      // Load a chunk (if not already loaded) at chunk coordinates (cx, cz).
+      function loadChunk(cx, cz) {
+        const key = `${cx},${cz}`;
+        if (loadedChunks[key]) return;
+
+        const chunkData = generateChunkData(cx, cz);
+        // Store the generated block data for collision lookups.
+        chunkDataStore[key] = chunkData;
+        const geometry = buildChunkGeometry(chunkData, cx, cz);
+        const material = new THREE.MeshLambertMaterial({
+          color: 0x55aa55,
+          side: THREE.FrontSide
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        loadedChunks[key] = mesh;
+      }
+
+      // Unload a chunk and free its resources.
+      function unloadChunk(cx, cz) {
+        const key = `${cx},${cz}`;
+        if (loadedChunks[key]) {
+          scene.remove(loadedChunks[key]);
+          loadedChunks[key].geometry.dispose();
+          loadedChunks[key].material.dispose();
+          delete loadedChunks[key];
+          delete chunkDataStore[key];
+        }
+      }
+
+      // Update loaded chunks around the player.
+      function updateChunks() {
+        const playerPos = yawObject.position;
+        let playerChunkX = Math.floor(playerPos.x / CHUNK_SIZE);
+        let playerChunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
+        playerChunkX = Math.max(0, Math.min(WORLD_CHUNK_COUNT - 1, playerChunkX));
+        playerChunkZ = Math.max(0, Math.min(WORLD_CHUNK_COUNT - 1, playerChunkZ));
+
+        for (let cx = playerChunkX - VISIBLE_RADIUS; cx <= playerChunkX + VISIBLE_RADIUS; cx++) {
+          for (let cz = playerChunkZ - VISIBLE_RADIUS; cz <= playerChunkZ + VISIBLE_RADIUS; cz++) {
+            if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) continue;
+            loadChunk(cx, cz);
+          }
+        }
+
+        for (const key in loadedChunks) {
+          const [cx, cz] = key.split(",").map(Number);
+          const dx = cx - playerChunkX;
+          const dz = cz - playerChunkZ;
+          if (Math.sqrt(dx * dx + dz * dz) > VISIBLE_RADIUS + 0.5) {
+            unloadChunk(cx, cz);
+          }
+        }
+      }
+
+      /********************************************
+       * Initialization & Rendering
+       ********************************************/
+      function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x88ccff);
+        scene.fog = new THREE.Fog(0x88ccff, 0, 150);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 0.5);
+        scene.add(directionalLight);
+
+        // Set up camera hierarchy (yaw/pitch for first-person).
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        pitchObject = new THREE.Object3D();
+        pitchObject.add(camera);
+        yawObject = new THREE.Object3D();
+        // Start near the center of the world.
+        yawObject.position.set(
+          (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2,
+          WORLD_HEIGHT,
+          (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2
+        );
+        yawObject.add(pitchObject);
+        scene.add(yawObject);
+
+        // Set up Pointer Lock using the browser API.
+        const element = document.body;
+        element.addEventListener("click", function () {
+          element.requestPointerLock();
+        });
+        document.addEventListener("pointerlockchange", onPointerLockChange, false);
+        document.addEventListener("pointerlockerror", onPointerLockError, false);
+        document.addEventListener("mousemove", onMouseMove, false);
+        document.addEventListener("mousedown", onMouseDown, false);
+        window.addEventListener("keydown", onKeyDown, false);
+        window.addEventListener("keyup", onKeyUp, false);
+        window.addEventListener("resize", onWindowResize, false);
+
+        animate();
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function onPointerLockChange() {
+        controlsEnabled = (document.pointerLockElement === document.body);
+      }
+      function onPointerLockError() {
+        console.error("PointerLock Error");
+      }
+      function onMouseMove(event) {
+        if (!controlsEnabled) return;
+        const movementX = event.movementX || 0;
+        const movementY = event.movementY || 0;
+        yawObject.rotation.y -= movementX * 0.002;
+        pitchObject.rotation.x -= movementY * 0.002;
+        pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
+      }
+      function onKeyDown(event) {
+        switch (event.code) {
+          case "KeyW":
+          case "ArrowUp":
+            moveForward = true;
+            break;
+          case "KeyS":
+          case "ArrowDown":
+            moveBackward = true;
+            break;
+          case "KeyA":
+          case "ArrowLeft":
+            moveLeft = true;
+            break;
+          case "KeyD":
+          case "ArrowRight":
+            moveRight = true;
+            break;
+          case "Space":
+            if (canJump) {
+              velocity.y += 5;
+              canJump = false;
+            }
+            break;
+        }
+      }
+      function onKeyUp(event) {
+        switch (event.code) {
+          case "KeyW":
+          case "ArrowUp":
+            moveForward = false;
+            break;
+          case "KeyS":
+          case "ArrowDown":
+            moveBackward = false;
+            break;
+          case "KeyA":
+          case "ArrowLeft":
+            moveLeft = false;
+            break;
+          case "KeyD":
+          case "ArrowRight":
+            moveRight = false;
+            break;
+        }
+      }
+
+      /********************************************
+       * Block Interaction (Place / Break)
+       ********************************************/
+      function onMouseDown(event) {
+        if (!controlsEnabled) return;
+        pointer.set(0, 0);
+        raycaster.setFromCamera(pointer, camera);
+        const intersects = raycaster.intersectObjects(Object.values(loadedChunks));
+        if (intersects.length > 0) {
+          const intersect = intersects[0];
+          const pos = intersect.point.clone().sub(intersect.face.normal.multiplyScalar(0.01));
+          const blockPos = new THREE.Vector3(
+            Math.floor(pos.x),
+            Math.floor(pos.y),
+            Math.floor(pos.z)
+          );
+          if (event.button === 0) {
+            modifyBlockAt(blockPos, 0);
+          } else if (event.button === 2) {
+            const normal = intersect.face.normal;
+            const placePos = blockPos.clone().add(normal);
+            modifyBlockAt(placePos, 1);
+          }
+        }
+      }
+      document.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+      function modifyBlockAt(worldPos, value) {
+        // For now, simply log the action.
+        console.log((value === 0 ? "Break" : "Place"), "block at", worldPos);
+      }
+
+      /********************************************
+       * Animation, Physics & Collision Loop
+       ********************************************/
+      function animate() {
+        requestAnimationFrame(animate);
+        const time = performance.now();
+        const delta = (time - prevTime) / 1000;
+        prevTime = time;
+
+        if (controlsEnabled) {
+          // Apply damping and gravity.
+          velocity.x -= velocity.x * 10 * delta;
+          velocity.z -= velocity.z * 10 * delta;
+          velocity.y -= 9.8 * 5 * delta;
+
+          direction.z = Number(moveForward) - Number(moveBackward);
+          direction.x = Number(moveRight) - Number(moveLeft);
+          direction.normalize();
+
+          if (moveForward || moveBackward) velocity.z -= direction.z * 20 * delta;
+          if (moveLeft || moveRight) velocity.x -= direction.x * 20 * delta;
+
+          // Compute desired new position.
+          const desiredPos = yawObject.position.clone().add(velocity.clone().multiplyScalar(delta));
+          const originalPos = yawObject.position.clone();
+
+          // Resolve collision on X axis.
+          yawObject.position.x = desiredPos.x;
+          if (collides()) {
+            yawObject.position.x = originalPos.x;
+            velocity.x = 0;
+          }
+          // Y axis.
+          yawObject.position.y = desiredPos.y;
+          if (collides()) {
+            if (velocity.y < 0) canJump = true;
+            yawObject.position.y = originalPos.y;
+            velocity.y = 0;
+          }
+          // Z axis.
+          yawObject.position.z = desiredPos.z;
+          if (collides()) {
+            yawObject.position.z = originalPos.z;
+            velocity.z = 0;
+          }
+
+          // Update loaded chunks based on player's position.
+          updateChunks();
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      // Initialize the app.
+      init();
+    </script>
+  </body>
+</html>
