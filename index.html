@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Minecraft-Style World with Collision</title>
+    <title>Minecraft-Style World with Multiple Block Types and Trees</title>
     <style>
       body {
         margin: 0;
@@ -22,39 +22,19 @@
   </head>
   <body>
     <div id="info">
-      Click to play – WASD to move, SPACE to jump. Left click to break, right click to
-      place blocks.
+      Click to play – WASD to move, SPACE to jump. Left click to break, right click to place blocks.
     </div>
-    <!-- Load Three.js -->
+    <!-- Load Three.js from a CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-    <!-- ImprovedNoise (Perlin noise implementation) -->
+    <!-- ImprovedNoise with Random Permutation -->
     <script>
-      /**
-       * ImprovedNoise based on Ken Perlin’s improved noise algorithm.
-       * Produces a smoothly interpolated noise value.
-       */
       var ImprovedNoise = function () {
-        var p = [
-          151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7,
-          225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6,
-          148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35,
-          11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171,
-          168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231,
-          83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245,
-          40, 244, 102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132,
-          187, 208, 89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164,
-          100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123, 5, 202,
-          38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58,
-          17, 182, 189, 28, 42, 223, 183, 170, 213, 119, 248, 152, 2, 44, 154,
-          163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19,
-          98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97,
-          228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81,
-          51, 145, 235, 249, 14, 239, 107, 49, 192, 214, 31, 181, 199, 106,
-          157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236,
-          205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215,
-          61, 156, 180
-        ];
+        var p = [];
+        // Use a random permutation
+        for (var i = 0; i < 256; i++) {
+          p[i] = Math.floor(Math.random() * 256);
+        }
         var permutation = new Array(512);
         for (var i = 0; i < 256; i++) {
           permutation[i] = p[i];
@@ -69,7 +49,7 @@
         function grad(hash, x, y, z) {
           var h = hash & 15;
           var u = h < 8 ? x : y;
-          var v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+          var v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
           return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
         }
         return {
@@ -115,30 +95,48 @@
       /********************************************
        * Global Constants & Variables
        ********************************************/
-      const CHUNK_SIZE = 16;        // Blocks wide/deep per chunk
-      const WORLD_HEIGHT = 32;        // Vertical blocks per chunk
-      const WORLD_CHUNK_COUNT = 50;   // World grid: 50 x 50 chunks
-      const VISIBLE_RADIUS = 5;       // Load chunks within 5 chunks of the player
+      const CHUNK_SIZE = 16;         // Blocks per side of a chunk
+      const WORLD_HEIGHT = 32;         // Vertical blocks per chunk
+      const WORLD_CHUNK_COUNT = 50;    // World grid: 50 x 50 chunks
+      const VISIBLE_RADIUS = 5;        // Load chunks within 5 chunks of the player
+
+      // Block types:
+      // 0 = Air
+      // 1 = Stone
+      // 2 = Dirt (surface)
+      // 3 = Wood (trunk)
+      // 4 = Leaves
+      // Colors will be assigned per type.
+      const blockColors = {
+        1: new THREE.Color(0x888888),  // Stone: gray
+        2: new THREE.Color(0x664422),  // Dirt: brownish
+        3: new THREE.Color(0x885522),  // Wood: dark brown
+        4: new THREE.Color(0x88cc88),  // Leaves: light green
+      };
+
+      // Player collision and movement parameters.
+      const playerHeight = 1.8;        // Cylinder height
+      const playerRadius = 0.3;        // Cylinder radius
+      const jumpImpulse = 13;          // Jump impulse
 
       let scene, renderer;
       let camera, yawObject, pitchObject;
       let controlsEnabled = false;
 
-      // Movement state
+      // Movement state.
       let velocity = new THREE.Vector3();
-      let direction = new THREE.Vector3();
+      let prevTime = performance.now();
       let moveForward = false,
           moveBackward = false,
           moveLeft = false,
           moveRight = false;
       let canJump = false;
-      let prevTime = performance.now();
 
-      // Dictionaries to store chunk meshes and block data
+      // Dictionaries for chunk meshes and block data.
       let loadedChunks = {};    // keys: "cx,cz" -> mesh
-      let chunkDataStore = {};  // keys: "cx,cz" -> block data (3D array)
+      let chunkDataStore = {};  // keys: "cx,cz" -> 3D block array
 
-      // Noise generator for smooth terrain.
+      // Noise generator.
       const noiseGenerator = new ImprovedNoise();
 
       // For raycasting block interactions.
@@ -146,42 +144,21 @@
       const pointer = new THREE.Vector2();
 
       /********************************************
-       * Player Collision Constants & Helpers
+       * Cylinder-Based Collision Helpers
        ********************************************/
-      const playerWidth = 0.6;
-      const playerHeight = 1.8;
-      const playerDepth = 0.6;
-
-      // Returns a THREE.Box3 representing the player's bounding volume.
-      function getPlayerAABB() {
-        const pos = yawObject.position;
-        return new THREE.Box3(
-          new THREE.Vector3(pos.x - playerWidth / 2, pos.y, pos.z - playerDepth / 2),
-          new THREE.Vector3(pos.x + playerWidth / 2, pos.y + playerHeight, pos.z + playerDepth / 2)
-        );
-      }
-
-      // Check if the player's AABB intersects any solid block.
-      function collides() {
-        const aabb = getPlayerAABB();
-        // Determine the range of block coordinates to check.
-        const minX = Math.floor(aabb.min.x);
-        const minY = Math.floor(aabb.min.y);
-        const minZ = Math.floor(aabb.min.z);
-        const maxX = Math.floor(aabb.max.x);
-        const maxY = Math.floor(aabb.max.y);
-        const maxZ = Math.floor(aabb.max.z);
-        for (let x = minX; x <= maxX; x++) {
-          for (let y = minY; y <= maxY; y++) {
-            for (let z = minZ; z <= maxZ; z++) {
-              if (getBlockAt(x, y, z)) {
-                // Create a box for the block and test for intersection.
-                let blockAABB = new THREE.Box3(
-                  new THREE.Vector3(x, y, z),
-                  new THREE.Vector3(x + 1, y + 1, z + 1)
-                );
-                if (aabb.intersectsBox(blockAABB)) {
-                  return true;
+      function collidesCylinder(posY, posX, posZ) {
+        const baseY = posY;
+        const topY = posY + playerHeight;
+        for (let bx = Math.floor(posX - playerRadius); bx <= Math.floor(posX + playerRadius); bx++) {
+          for (let bz = Math.floor(posZ - playerRadius); bz <= Math.floor(posZ + playerRadius); bz++) {
+            for (let by = Math.floor(baseY); by < Math.floor(topY) + 1; by++) {
+              if (getBlockAt(bx, by, bz)) {
+                if ((by < topY) && (by + 1 > baseY)) {
+                  const nearestX = Math.max(bx, Math.min(posX, bx + 1));
+                  const nearestZ = Math.max(bz, Math.min(posZ, bz + 1));
+                  const dx = posX - nearestX;
+                  const dz = posZ - nearestZ;
+                  if (Math.sqrt(dx * dx + dz * dz) < playerRadius) return true;
                 }
               }
             }
@@ -190,93 +167,137 @@
         return false;
       }
 
-      // Given a set of global coordinates, returns the block value (1 for solid, 0 for air).
+      function resolveHorizontalCollisions() {
+        let iterations = 0;
+        while (iterations < 5) {
+          let posX = yawObject.position.x;
+          let posZ = yawObject.position.z;
+          let correction = new THREE.Vector2(0, 0);
+          let collided = false;
+          const baseY = yawObject.position.y;
+          const topY = baseY + playerHeight;
+          for (let bx = Math.floor(posX - playerRadius); bx <= Math.floor(posX + playerRadius); bx++) {
+            for (let bz = Math.floor(posZ - playerRadius); bz <= Math.floor(posZ + playerRadius); bz++) {
+              for (let by = Math.floor(baseY); by < Math.floor(topY) + 1; by++) {
+                if (getBlockAt(bx, by, bz)) {
+                  if ((by < topY) && (by + 1 > baseY)) {
+                    const nearestX = Math.max(bx, Math.min(posX, bx + 1));
+                    const nearestZ = Math.max(bz, Math.min(posZ, bz + 1));
+                    let dx = posX - nearestX;
+                    let dz = posZ - nearestZ;
+                    let dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist < playerRadius) {
+                      let overlap = playerRadius - dist;
+                      if (dist === 0) {
+                        dx = 0.01;
+                        dz = 0.01;
+                        dist = Math.sqrt(dx * dx + dz * dz);
+                      }
+                      const nx = dx / dist;
+                      const nz = dz / dist;
+                      correction.x += nx * overlap;
+                      correction.y += nz * overlap;
+                      collided = true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (collided) {
+            yawObject.position.x += correction.x;
+            yawObject.position.z += correction.y;
+          } else {
+            break;
+          }
+          iterations++;
+        }
+      }
+
+      /********************************************
+       * Block & Chunk Helpers
+       ********************************************/
+      // Returns the block value at global coordinate (1 = solid, 0 = air, or a type > 1)
       function getBlockAt(globalX, globalY, globalZ) {
-        // Out-of-bound vertically.
         if (globalY < 0 || globalY >= WORLD_HEIGHT) return 0;
         const cx = Math.floor(globalX / CHUNK_SIZE);
         const cz = Math.floor(globalZ / CHUNK_SIZE);
-        // If the chunk is not loaded (or outside world bounds), assume air.
         if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) return 0;
         const key = `${cx},${cz}`;
         const chunkData = chunkDataStore[key];
         if (!chunkData) return 0;
         const localX = globalX - cx * CHUNK_SIZE;
         const localZ = globalZ - cz * CHUNK_SIZE;
-        // Ensure indices are within block grid.
-        if (localX < 0 || localX >= CHUNK_SIZE || localZ < 0 || localZ >= CHUNK_SIZE) return 0;
+        if (localX < 0 || localX >= CHUNK_SIZE || localZ < 0 || localZ >= CHUNK_SIZE)
+          return 0;
         return chunkData[localX][globalY][localZ];
       }
 
-      /********************************************
-       * Cube Face Data (for mesh face culling)
-       ********************************************/
+      // Helper for chunk-local access
+      function getBlockInChunk(chunkData, x, y, z) {
+        if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE)
+          return 0;
+        return chunkData[x][y][z];
+      }
+
+      // Cube face definitions.
       const faces = [
-        {
-          // Left face (-X)
+        { // Left face (-X)
           dir: [-1, 0, 0],
           vertices: [
             [0, 0, 1],
             [0, 1, 1],
             [0, 1, 0],
             [0, 0, 0],
-          ],
+          ]
         },
-        {
-          // Right face (+X)
+        { // Right face (+X)
           dir: [1, 0, 0],
           vertices: [
             [1, 0, 0],
             [1, 1, 0],
             [1, 1, 1],
             [1, 0, 1],
-          ],
+          ]
         },
-        {
-          // Bottom face (-Y)
+        { // Bottom face (-Y)
           dir: [0, -1, 0],
           vertices: [
             [0, 0, 0],
             [1, 0, 0],
             [1, 0, 1],
             [0, 0, 1],
-          ],
+          ]
         },
-        {
-          // Top face (+Y)
+        { // Top face (+Y)
           dir: [0, 1, 0],
           vertices: [
             [0, 1, 1],
             [1, 1, 1],
             [1, 1, 0],
             [0, 1, 0],
-          ],
+          ]
         },
-        {
-          // Back face (-Z)
+        { // Back face (-Z)
           dir: [0, 0, -1],
           vertices: [
             [1, 0, 0],
             [0, 0, 0],
             [0, 1, 0],
             [1, 1, 0],
-          ],
+          ]
         },
-        {
-          // Front face (+Z)
+        { // Front face (+Z)
           dir: [0, 0, 1],
           vertices: [
             [0, 0, 1],
             [1, 0, 1],
             [1, 1, 1],
             [0, 1, 1],
-          ],
-        },
+          ]
+        }
       ];
 
-      /********************************************
-       * World Generation Functions
-       ********************************************/
       // Height function using improved noise.
       function getHeight(globalX, globalZ) {
         const frequency = 0.05;
@@ -284,64 +305,110 @@
         return Math.floor(((noiseVal + 1) / 2) * (WORLD_HEIGHT - 1));
       }
 
-      // Generates block data (a 3D array) for a chunk at chunk coordinates (cx, cz).
+      /********************************************
+       * Tree Generation in Chunk Data
+       ********************************************/
+      // Generates the block data for a single chunk.
+      // Generates ground and—with a small chance—a tree on some columns.
       function generateChunkData(cx, cz) {
+        // Create a 3D array: data[x][y][z]
         const data = [];
         for (let x = 0; x < CHUNK_SIZE; x++) {
           data[x] = [];
           for (let y = 0; y < WORLD_HEIGHT; y++) {
             data[x][y] = [];
             for (let z = 0; z < CHUNK_SIZE; z++) {
-              const globalX = cx * CHUNK_SIZE + x;
-              const globalZ = cz * CHUNK_SIZE + z;
-              let h = getHeight(globalX, globalZ);
-              data[x][y][z] = (y <= h) ? 1 : 0;
+              data[x][y][z] = 0;
+            }
+          }
+        }
+        // For each column (x,z) in the chunk:
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          for (let z = 0; z < CHUNK_SIZE; z++) {
+            let globalX = cx * CHUNK_SIZE + x;
+            let globalZ = cz * CHUNK_SIZE + z;
+            let h = getHeight(globalX, globalZ);
+            if (h >= WORLD_HEIGHT) h = WORLD_HEIGHT - 1;
+            // Fill lower layers with stone.
+            for (let y = 0; y < h; y++) {
+              data[x][y][z] = 1; // Stone
+            }
+            // Set the top block as dirt.
+            data[x][h][z] = 2; // Dirt (surface)
+            
+            // Optionally, generate a tree with a small chance.
+            // Only generate if the column is not at the very edge of the chunk.
+            if (h >= 4 && x >= 2 && x < CHUNK_SIZE - 2 && z >= 2 && z < CHUNK_SIZE - 2) {
+              if (Math.random() < 0.04) {
+                // Generate trunk.
+                const trunkHeight = Math.floor(Math.random() * 3) + 4; // 4-6 blocks tall
+                for (let i = 1; i <= trunkHeight; i++) {
+                  if (h + i < WORLD_HEIGHT) {
+                    data[x][h + i][z] = 3; // Wood
+                  }
+                }
+                // Generate a simple canopy.
+                for (let dy = trunkHeight; dy <= trunkHeight + 1; dy++) {
+                  if (h + dy >= WORLD_HEIGHT) continue;
+                  for (let dx = -1; dx <= 1; dx++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                      const tx = x + dx;
+                      const tz = z + dz;
+                      if (tx >= 0 && tx < CHUNK_SIZE && tz >= 0 && tz < CHUNK_SIZE) {
+                        data[tx][h + dy][tz] = 4; // Leaves
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
         return data;
       }
 
-      // Utility: get block value from chunk data (returns 0 if indices are out of range)
-      function getBlockInChunk(chunkData, x, y, z) {
-        if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE)
-          return 0;
-        return chunkData[x][y][z];
-      }
-
-      // Build BufferGeometry for a chunk with world-offset.
+      /********************************************
+       * Build Chunk Geometry with Vertex Colors
+       ********************************************/
       function buildChunkGeometry(chunkData, cx, cz) {
         const vertices = [];
         const indices = [];
         const uvs = [];
+        const colors = [];
         let vertexCount = 0;
 
         for (let x = 0; x < CHUNK_SIZE; x++) {
           for (let y = 0; y < WORLD_HEIGHT; y++) {
             for (let z = 0; z < CHUNK_SIZE; z++) {
-              if (chunkData[x][y][z] !== 0) {
-                for (let f = 0; f < faces.length; f++) {
-                  const face = faces[f];
-                  const nx = x + face.dir[0];
-                  const ny = y + face.dir[1];
-                  const nz = z + face.dir[2];
-                  if (getBlockInChunk(chunkData, nx, ny, nz) !== 0) continue;
-                  // Add vertices in global coordinates.
-                  for (let i = 0; i < 4; i++) {
-                    const vertex = face.vertices[i];
-                    vertices.push(
-                      cx * CHUNK_SIZE + x + vertex[0],
-                      y + vertex[1],
-                      cz * CHUNK_SIZE + z + vertex[2]
-                    );
-                  }
-                  uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
-                  indices.push(
-                    vertexCount, vertexCount + 1, vertexCount + 2,
-                    vertexCount, vertexCount + 2, vertexCount + 3
+              let blockType = chunkData[x][y][z];
+              if (blockType === 0) continue;
+
+              // For each face, check if the neighbor is air.
+              for (let f = 0; f < faces.length; f++) {
+                const face = faces[f];
+                const nx = x + face.dir[0];
+                const ny = y + face.dir[1];
+                const nz = z + face.dir[2];
+                if (getBlockInChunk(chunkData, nx, ny, nz) !== 0) continue;
+
+                // Add face vertices.
+                for (let i = 0; i < 4; i++) {
+                  const vertex = face.vertices[i];
+                  vertices.push(
+                    cx * CHUNK_SIZE + x + vertex[0],
+                    y + vertex[1],
+                    cz * CHUNK_SIZE + z + vertex[2]
                   );
-                  vertexCount += 4;
+                  // Push the color corresponding to blockType.
+                  let col = blockColors[blockType];
+                  colors.push(col.r, col.g, col.b);
                 }
+                uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+                indices.push(
+                  vertexCount, vertexCount + 1, vertexCount + 2,
+                  vertexCount, vertexCount + 2, vertexCount + 3
+                );
+                vertexCount += 4;
               }
             }
           }
@@ -349,22 +416,23 @@
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
         geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
         return geometry;
       }
 
-      // Load a chunk (if not already loaded) at chunk coordinates (cx, cz).
+      /********************************************
+       * Chunk Management
+       ********************************************/
       function loadChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (loadedChunks[key]) return;
-
         const chunkData = generateChunkData(cx, cz);
-        // Store the generated block data for collision lookups.
         chunkDataStore[key] = chunkData;
         const geometry = buildChunkGeometry(chunkData, cx, cz);
         const material = new THREE.MeshLambertMaterial({
-          color: 0x55aa55,
+          vertexColors: true,
           side: THREE.FrontSide
         });
         const mesh = new THREE.Mesh(geometry, material);
@@ -372,7 +440,6 @@
         loadedChunks[key] = mesh;
       }
 
-      // Unload a chunk and free its resources.
       function unloadChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (loadedChunks[key]) {
@@ -384,7 +451,24 @@
         }
       }
 
-      // Update loaded chunks around the player.
+      function updateChunk(cx, cz) {
+        const key = `${cx},${cz}`;
+        if (!chunkDataStore[key]) return;
+        if (loadedChunks[key]) {
+          scene.remove(loadedChunks[key]);
+          loadedChunks[key].geometry.dispose();
+          loadedChunks[key].material.dispose();
+        }
+        const geometry = buildChunkGeometry(chunkDataStore[key], cx, cz);
+        const material = new THREE.MeshLambertMaterial({
+          vertexColors: true,
+          side: THREE.FrontSide
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        loadedChunks[key] = mesh;
+      }
+
       function updateChunks() {
         const playerPos = yawObject.position;
         let playerChunkX = Math.floor(playerPos.x / CHUNK_SIZE);
@@ -398,7 +482,6 @@
             loadChunk(cx, cz);
           }
         }
-
         for (const key in loadedChunks) {
           const [cx, cz] = key.split(",").map(Number);
           const dx = cx - playerChunkX;
@@ -407,6 +490,34 @@
             unloadChunk(cx, cz);
           }
         }
+      }
+
+      /********************************************
+       * Block Modification (Place / Break)
+       ********************************************/
+      function modifyBlockAt(worldPos, value) {
+        const gx = Math.floor(worldPos.x);
+        const gy = Math.floor(worldPos.y);
+        const gz = Math.floor(worldPos.z);
+        const cx = Math.floor(gx / CHUNK_SIZE);
+        const cz = Math.floor(gz / CHUNK_SIZE);
+        const key = `${cx},${cz}`;
+        if (!chunkDataStore[key]) {
+          console.log("Chunk not loaded. Cannot modify block.");
+          return;
+        }
+        const localX = gx - cx * CHUNK_SIZE;
+        const localZ = gz - cz * CHUNK_SIZE;
+        if (
+          localX < 0 || localX >= CHUNK_SIZE ||
+          gy < 0 || gy >= WORLD_HEIGHT ||
+          localZ < 0 || localZ >= CHUNK_SIZE
+        ) {
+          console.log("Block coordinates out of range.");
+          return;
+        }
+        chunkDataStore[key][localX][gy][localZ] = value;
+        updateChunk(cx, cz);
       }
 
       /********************************************
@@ -426,12 +537,14 @@
         directionalLight.position.set(1, 1, 0.5);
         scene.add(directionalLight);
 
-        // Set up camera hierarchy (yaw/pitch for first-person).
+        // Set up camera and first-person hierarchy.
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Position the camera at 80% of the cylinder height (simulating the head).
+        camera.position.set(0, 0.8 * playerHeight, 0);
         pitchObject = new THREE.Object3D();
         pitchObject.add(camera);
         yawObject = new THREE.Object3D();
-        // Start near the center of the world.
+        // Place the player near the center of the world.
         yawObject.position.set(
           (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2,
           WORLD_HEIGHT,
@@ -440,7 +553,7 @@
         yawObject.add(pitchObject);
         scene.add(yawObject);
 
-        // Set up Pointer Lock using the browser API.
+        // Setup Pointer Lock.
         const element = document.body;
         element.addEventListener("click", function () {
           element.requestPointerLock();
@@ -476,6 +589,23 @@
         pitchObject.rotation.x -= movementY * 0.002;
         pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
       }
+
+      function getMovementAcceleration(delta) {
+        const forward = new THREE.Vector3(0, 0, -1)
+          .applyAxisAngle(new THREE.Vector3(0, 1, 0), yawObject.rotation.y);
+        const right = new THREE.Vector3(1, 0, 0)
+          .applyAxisAngle(new THREE.Vector3(0, 1, 0), yawObject.rotation.y);
+        const accel = new THREE.Vector3();
+        if (moveForward) accel.add(forward);
+        if (moveBackward) accel.sub(forward);
+        if (moveLeft) accel.sub(right);
+        if (moveRight) accel.add(right);
+        if (accel.length() > 0) {
+          accel.normalize().multiplyScalar(20 * delta);
+        }
+        return accel;
+      }
+
       function onKeyDown(event) {
         switch (event.code) {
           case "KeyW":
@@ -496,12 +626,13 @@
             break;
           case "Space":
             if (canJump) {
-              velocity.y += 5;
+              velocity.y = jumpImpulse;
               canJump = false;
             }
             break;
         }
       }
+
       function onKeyUp(event) {
         switch (event.code) {
           case "KeyW":
@@ -524,8 +655,10 @@
       }
 
       /********************************************
-       * Block Interaction (Place / Break)
+       * Block Interaction via Raycasting
        ********************************************/
+      // Cast a ray from the center of the camera. For left-click (break)
+      // subtract a tiny offset; for right-click (place) add ~0.51 along the face normal.
       function onMouseDown(event) {
         if (!controlsEnabled) return;
         pointer.set(0, 0);
@@ -533,28 +666,25 @@
         const intersects = raycaster.intersectObjects(Object.values(loadedChunks));
         if (intersects.length > 0) {
           const intersect = intersects[0];
-          const pos = intersect.point.clone().sub(intersect.face.normal.multiplyScalar(0.01));
-          const blockPos = new THREE.Vector3(
-            Math.floor(pos.x),
-            Math.floor(pos.y),
-            Math.floor(pos.z)
-          );
-          if (event.button === 0) {
-            modifyBlockAt(blockPos, 0);
-          } else if (event.button === 2) {
-            const normal = intersect.face.normal;
-            const placePos = blockPos.clone().add(normal);
-            modifyBlockAt(placePos, 1);
+          if (event.button === 0) { // Left click: break block.
+            const breakPos = new THREE.Vector3(
+              Math.floor(intersect.point.x - intersect.face.normal.x * 0.01),
+              Math.floor(intersect.point.y - intersect.face.normal.y * 0.01),
+              Math.floor(intersect.point.z - intersect.face.normal.z * 0.01)
+            );
+            modifyBlockAt(breakPos, 0);
+          } else if (event.button === 2) { // Right click: place block.
+            const placePos = new THREE.Vector3(
+              Math.floor(intersect.point.x + intersect.face.normal.x * 0.51),
+              Math.floor(intersect.point.y + intersect.face.normal.y * 0.51),
+              Math.floor(intersect.point.z + intersect.face.normal.z * 0.51)
+            );
+            modifyBlockAt(placePos, 2); // Place a dirt block by default.
+            // You could modify this to allow players to select which material to place.
           }
         }
       }
-      document.addEventListener("contextmenu", function (e) {
-        e.preventDefault();
-      });
-      function modifyBlockAt(worldPos, value) {
-        // For now, simply log the action.
-        console.log((value === 0 ? "Break" : "Place"), "block at", worldPos);
-      }
+      document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 
       /********************************************
        * Animation, Physics & Collision Loop
@@ -566,50 +696,32 @@
         prevTime = time;
 
         if (controlsEnabled) {
-          // Apply damping and gravity.
           velocity.x -= velocity.x * 10 * delta;
           velocity.z -= velocity.z * 10 * delta;
-          velocity.y -= 9.8 * 5 * delta;
+          velocity.y -= 9.8 * 5 * delta; // Gravity
 
-          direction.z = Number(moveForward) - Number(moveBackward);
-          direction.x = Number(moveRight) - Number(moveLeft);
-          direction.normalize();
+          const accel = getMovementAcceleration(delta);
+          velocity.x += accel.x;
+          velocity.z += accel.z;
 
-          if (moveForward || moveBackward) velocity.z -= direction.z * 20 * delta;
-          if (moveLeft || moveRight) velocity.x -= direction.x * 20 * delta;
+          yawObject.position.x += velocity.x * delta;
+          yawObject.position.z += velocity.z * delta;
+          resolveHorizontalCollisions();
 
-          // Compute desired new position.
-          const desiredPos = yawObject.position.clone().add(velocity.clone().multiplyScalar(delta));
-          const originalPos = yawObject.position.clone();
-
-          // Resolve collision on X axis.
-          yawObject.position.x = desiredPos.x;
-          if (collides()) {
-            yawObject.position.x = originalPos.x;
-            velocity.x = 0;
-          }
-          // Y axis.
-          yawObject.position.y = desiredPos.y;
-          if (collides()) {
+          const originalY = yawObject.position.y;
+          yawObject.position.y += velocity.y * delta;
+          if (collidesCylinder(yawObject.position.y, yawObject.position.x, yawObject.position.z)) {
             if (velocity.y < 0) canJump = true;
-            yawObject.position.y = originalPos.y;
+            yawObject.position.y = originalY;
             velocity.y = 0;
           }
-          // Z axis.
-          yawObject.position.z = desiredPos.z;
-          if (collides()) {
-            yawObject.position.z = originalPos.z;
-            velocity.z = 0;
-          }
 
-          // Update loaded chunks based on player's position.
           updateChunks();
         }
 
         renderer.render(scene, camera);
       }
 
-      // Initialize the app.
       init();
     </script>
   </body>
