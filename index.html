@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Minecraft-Style World with Multiple Block Types and Trees</title>
+    <title>Wonder World (Alpha)</title>
     <style>
       body {
         margin: 0;
@@ -22,7 +22,7 @@
   </head>
   <body>
     <div id="info">
-      Click to play – WASD to move, SPACE to jump. Left click to break, right click to place blocks.
+      Click to play - WASD to move, SPACE to jump. Left click to break, right click to place blocks.
     </div>
     <!-- Load Three.js from a CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -96,7 +96,7 @@
        * Global Constants & Variables
        ********************************************/
       const CHUNK_SIZE = 16;         // Blocks per side of a chunk
-      const WORLD_HEIGHT = 32;         // Vertical blocks per chunk
+      const WORLD_HEIGHT = 256;         // Vertical blocks per chunk
       const WORLD_CHUNK_COUNT = 50;    // World grid: 50 x 50 chunks
       const VISIBLE_RADIUS = 5;        // Load chunks within 5 chunks of the player
 
@@ -120,7 +120,8 @@
       const jumpImpulse = 13;          // Jump impulse
 
       let scene, renderer;
-      let camera, yawObject, pitchObject;
+      let camera, yawObject;
+      let pitch = 0;
       let controlsEnabled = false;
 
       // Movement state.
@@ -131,6 +132,9 @@
           moveLeft = false,
           moveRight = false;
       let canJump = false;
+
+      // NEW: Store last known player chunk coordinates
+      let lastPlayerChunkX = null, lastPlayerChunkZ = null;
 
       // Dictionaries for chunk meshes and block data.
       let loadedChunks = {};    // keys: "cx,cz" -> mesh
@@ -541,18 +545,20 @@
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         // Position the camera at 80% of the cylinder height (simulating the head).
         camera.position.set(0, 0.8 * playerHeight, 0);
-        pitchObject = new THREE.Object3D();
-        pitchObject.add(camera);
         yawObject = new THREE.Object3D();
-        // Place the player near the center of the world.
-        yawObject.position.set(
-          (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2,
-          WORLD_HEIGHT,
-          (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2
-        );
-        yawObject.add(pitchObject);
+        
+        // Place the player near the center of the world; get ground height at starting x/z.
+        let startX = (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2;
+        let startZ = (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2;
+        let groundY = getHeight(startX, startZ);
+        // Position the player on the ground (add playerHeight so the player stands above ground).
+        yawObject.position.set(startX, groundY + playerHeight, startZ);
+        yawObject.add(camera);
         scene.add(yawObject);
-
+        
+        // Preload visible chunks so the world is ready.
+        updateChunks();
+        
         // Setup Pointer Lock.
         const element = document.body;
         element.addEventListener("click", function () {
@@ -586,8 +592,9 @@
         const movementX = event.movementX || 0;
         const movementY = event.movementY || 0;
         yawObject.rotation.y -= movementX * 0.002;
-        pitchObject.rotation.x -= movementY * 0.002;
-        pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
+        pitch -= movementY * 0.002;
+        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+        camera.rotation.x = pitch;
       }
 
       function getMovementAcceleration(delta) {
@@ -692,7 +699,8 @@
       function animate() {
         requestAnimationFrame(animate);
         const time = performance.now();
-        const delta = (time - prevTime) / 1000;
+        // Cap delta to avoid glitches on dropped frames
+        const delta = Math.min((time - prevTime) / 1000, 0.1);
         prevTime = time;
 
         if (controlsEnabled) {
@@ -715,8 +723,22 @@
             yawObject.position.y = originalY;
             velocity.y = 0;
           }
+          // Update chunks only when the player's chunk position changes.
+          let newChunkX = Math.floor(yawObject.position.x / CHUNK_SIZE);
+          let newChunkZ = Math.floor(yawObject.position.z / CHUNK_SIZE);
+          if (newChunkX !== lastPlayerChunkX || newChunkZ !== lastPlayerChunkZ) {
+            updateChunks();
+            lastPlayerChunkX = newChunkX;
+            lastPlayerChunkZ = newChunkZ;
+          }
+        }
 
-          updateChunks();
+        // Safety check: if the player falls too far below the world, respawn them
+        if (yawObject.position.y < -50) {
+          const currentGroundY = getHeight(yawObject.position.x, yawObject.position.z);
+          yawObject.position.y = currentGroundY + playerHeight;
+          velocity.set(0, 0, 0);
+          canJump = false;
         }
 
         renderer.render(scene, camera);
