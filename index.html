@@ -7,6 +7,8 @@
         body {
             margin: 0;
             overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         #info {
             position: absolute;
@@ -14,7 +16,6 @@
             width: 100%;
             color: #fff;
             font-family: sans-serif;
-            background: rgba(0, 0, 0, 0.5);
             padding: 10px;
             z-index: 1;
         }
@@ -22,7 +23,7 @@
     </head>
     <body>
         <div id="info">
-        Click to play - WASD to move, SPACE to jump. Left click to break, right click to place blocks.
+        Wonder World Version Alpha.8.3.6
         </div>
         <!-- Load Three.js from a CDN -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -95,10 +96,10 @@
         /********************************************
          * Global Constants & Variables
          ********************************************/
-        const CHUNK_SIZE = 50;         // Blocks per side of a chunk
+        const CHUNK_SIZE = 16;         // Blocks per side of a chunk
         const WORLD_HEIGHT = 216;         // Vertical blocks per chunk
-        const WORLD_CHUNK_COUNT = 100;    // World grid: 50 x 50 chunks
-        const VISIBLE_RADIUS = 2;        // Load chunks within 5 chunks of the player
+        const WORLD_CHUNK_COUNT = 100;    // World chunk grid
+        const VISIBLE_RADIUS = 4;        // Load chunks within a certain radius from the chunks of the player
 
         // Block types:
         // 0 = Air
@@ -434,163 +435,114 @@
             return Math.floor(((noiseVal + 1) / 2) * (WORLD_HEIGHT - 1));
         }
 
-        // Use low-frequency noise for biome selection (desert, plains, snow, mountain)
-        function getBiomeValue(globalX, globalZ) {
-            return noiseGenerator.noise(globalX * 0.001, 0, globalZ * 0.001); // ~[-1,1], smooth over long distances
-        }
-
+        // Remove all biomes except plains and disable caves
         function getBiome(globalX, globalZ) {
-            let b = getBiomeValue(globalX, globalZ);
-            if (b < 0) return "ocean"; // Ocean biome for very low noise values
-            if (b > 0.6) return "mountains";
-            if (b > 0.3) return "desert";
-            if (b > -0.3) return "plains";
-            return "snow";
+            return "plains"; // Always return plains biome
         }
 
-        // Smooth transition: plains, desert, and snow share the same base height; mountains add a smooth offset.
-        function getHeightWithBiome(globalX, globalZ) {
-            if (getBiome(globalX, globalZ) === "ocean") {
-                return 10; // Ocean biome: low, deep terrain
-            }
-            let nPrimary = noiseGenerator.noise(globalX * 0.1, 0, globalZ * 0.1);  // roughly [-1,1]
-            let basePlain = 55;  // Adjusted from 425 to a more reasonable value for terrain generation
-            let plainHeight = basePlain + nPrimary * 4;  // gentle slopes
+        // Define biome-specific terrain data
+        const biomes = {
+            plains: {
+                baseHeight: 55, // Base height for plains
+                heightVariation: 2, // Subtle hills for plains
+                frequency: 0.05, // Frequency of noise for terrain variation
+                structures: [
+                    { type: "tree", frequency: 0.05 }, // Adjusted from 0.05 to 0.0125 for reduced density
+                    { type: "house", frequency: 0.001 }
+                ]
+            },
+        };
 
-            // Use biome noise to add mountain offset if applicable.
-            let b = getBiomeValue(globalX, globalZ);
-            if (b > 0.6) {
-                let smoothFactor = (b - 0.6) / (1 - 0.6);
-                if (b > 0.8) {
-                    return Math.floor(plainHeight + smoothFactor * 50); // Giant mountain offset
+        function getHeightWithBiome(globalX, globalZ) {
+            const biome = biomes["plains"]; // Currently only plains
+            const nPrimary = noiseGenerator.noise(globalX * biome.frequency, 0, globalZ * biome.frequency); // Noise value
+            const height = biome.baseHeight + nPrimary * biome.heightVariation; // Calculate height
+            return Math.floor(height);
+        }
+
+        /********************************************
+         * Tree and House Generation
+         ********************************************/
+        function generateTree(data, x, y, z) {
+            // Simple tree structure: trunk and leaves
+            for (let i = 0; i < 4; i++) {
+                if (y + i < WORLD_HEIGHT) data[x][y + i][z] = 3; // Trunk
+            }
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    if (x + dx >= 0 && x + dx < CHUNK_SIZE && z + dz >= 0 && z + dz < CHUNK_SIZE) {
+                        if (y + 4 < WORLD_HEIGHT) data[x + dx][y + 4][z + dz] = 4; // Leaves
+                    }
                 }
-                return Math.floor(plainHeight + smoothFactor * 25); // Regular mountain
-            } else {
-                return Math.floor(plainHeight);
+            }
+        }
+
+        function generateHouse(data, x, y, z, size=6) {
+            // Simple house structure: walls and roof
+            for (let dx = 0; dx < size; dx++) {
+                for (let dz = 0; dz < size; dz++) {
+                    for (let dy = 0; dy < size; dy++) {
+                        if (x + dx < CHUNK_SIZE && z + dz < CHUNK_SIZE && y + dy < WORLD_HEIGHT) {
+                            if (dx === 0 || dx === size-1 || dz === 0 || dz === size-1) {
+                                data[x + dx][y + dy][z + dz] = 1; // Walls
+                            }
+                        }
+                    }
+                }
+            }
+            for (let dx = 0; dx < size; dx++) {
+                for (let dz = 0; dz < size; dz++) {
+                    if (x + dx < CHUNK_SIZE && z + dz < CHUNK_SIZE && y + size < WORLD_HEIGHT) {
+                        data[x + dx][y + size][z + dz] = 1; // Roof
+                    }
+                }
             }
         }
 
         /********************************************
-         * Tree Generation in Chunk Data
+         * Chunk Data Generation
          ********************************************/
-        // Generates the block data for a single chunk.
-        // Generates ground and—with a small chance—a tree on some columns.
         function generateChunkData(cx, cz) {
-            // Create a 3D array: data[x][y][z]
             const data = [];
             for (let x = 0; x < CHUNK_SIZE; x++) {
-            data[x] = [];
-            for (let y = 0; y < WORLD_HEIGHT; y++) {
-                data[x][y] = [];
-                for (let z = 0; z < CHUNK_SIZE; z++) {
-                data[x][y][z] = 0;
+                data[x] = [];
+                for (let y = 0; y < WORLD_HEIGHT; y++) {
+                    data[x][y] = [];
+                    for (let z = 0; z < CHUNK_SIZE; z++) {
+                        data[x][y][z] = 0; // Initialize all blocks as air
+                    }
                 }
             }
-            }
-            // For each column (x,z) in the chunk:
-            for (let x = 0; x < CHUNK_SIZE; x++) {
-            for (let z = 0; z < CHUNK_SIZE; z++) {
-                let globalX = cx * CHUNK_SIZE + x;
-                let globalZ = cz * CHUNK_SIZE + z;
-                let biome = getBiome(globalX, globalZ);
-                let h = getHeightWithBiome(globalX, globalZ);
-                if (h >= WORLD_HEIGHT) h = WORLD_HEIGHT - 1;
-                if (biome === "ocean") {
-                    // Ocean biome: fill entire column with sand for a deep, sandy floor.
-                    for (let y = 0; y <= h; y++) {
-                        data[x][y][z] = 5; // Sand
-                    }
-                } else {
-                    // Fill lower layers with stone.
-                    for (let y = 0; y < h; y++) {
-                    data[x][y][z] = 1; // Stone
-                    }
-                    // Set the top block based on biome:
-                    if (biome === "desert") {
-                        data[x][h][z] = 5; // Sand
-                    } else if (biome === "snow") {
-                        data[x][h][z] = 6; // Snow
-                    } else if (biome === "mountain") {
-                        data[x][h][z] = 1; // Rugged surface (stone)
-                    } else {
-                        data[x][h][z] = 2; // Dirt for plains
-                    }
-                    
-                    // NEW: Carve caves in non-ocean biomes so they reach the surface.
-                    // Adjust cave frequency and size by modifying noise thresholds and parameters
-                    const caveFrequency = 0.05; // Lower frequency for less frequent caves
-                    const caveThreshold = 0.15; // Higher threshold for smaller caves
 
-                    // Update cave generation logic
-                    for (let y = 1; y < h; y++) {
-                        if ((data[x][y][z] === 1 || data[x][y][z] === 2) &&
-                            noiseGenerator.noise(globalX * caveFrequency, y * caveFrequency, globalZ * caveFrequency) > caveThreshold) {
-                            data[x][y][z] = 0;
-                        }
-                    }
-                }
-            }
-            }
-            // Smoothing pass to create more continuous, tunnel-like caves.
-            for (let x = 1; x < CHUNK_SIZE - 1; x++) {
-                for (let y = 1; y < WORLD_HEIGHT - 1; y++) {
-                    for (let z = 1; z < CHUNK_SIZE - 1; z++) {
-                        if (data[x][y][z] !== 0) {
-                            let airCount = 0;
-                            for (let dx = -1; dx <= 1; dx++) {
-                                for (let dy = -1; dy <= 1; dy++) {
-                                    for (let dz = -1; dz <= 1; dz++) {
-                                        if (data[x + dx][y + dy][z + dz] === 0) {
-                                            airCount++;
-                                        }
-                                    }
-                                }
-                            }
-                            // If more than half of the neighbors are air, clear this block.
-                            if (airCount > 12) {
-                                data[x][y][z] = 0;
-                            }
-                        }
-                    }
-                }
-            }
-            // NEW: Generate trees for plains biome after cave carving
-            for (let x = 2; x < CHUNK_SIZE - 2; x++) {
-                for (let z = 2; z < CHUNK_SIZE - 2; z++) {
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
                     let globalX = cx * CHUNK_SIZE + x;
                     let globalZ = cz * CHUNK_SIZE + z;
-                    if (getBiome(globalX, globalZ) === "plains" && Math.random() < 0.04) {
-                        // Find the highest solid block in this column.
-                        let topY = 0;
-                        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-                            if (data[x][y][z] !== 0) {
-                                topY = y;
-                                break;
-                            }
-                        }
-                        // Generate tree only if the top block is dirt and there's space.
-                        if (data[x][topY][z] === 2 && topY + 6 < WORLD_HEIGHT) {
-                            const trunkHeight = Math.floor(Math.random() * 3) + 4; // 4-6 blocks tall
-                            for (let i = 1; i <= trunkHeight; i++) {
-                                data[x][topY + i][z] = 3; // Wood
-                            }
-                            // Generate canopy.
-                            for (let dy = trunkHeight; dy <= trunkHeight + 1; dy++) {
-                                if (topY + dy >= WORLD_HEIGHT) continue;
-                                for (let dx = -1; dx <= 1; dx++) {
-                                    for (let dz = -1; dz <= 1; dz++) {
-                                        const tx = x + dx;
-                                        const tz = z + dz;
-                                        if (tx >= 0 && tx < CHUNK_SIZE && tz >= 0 && tz < CHUNK_SIZE) {
-                                            data[tx][topY + dy][tz] = 4; // Leaves
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    let h = getHeightWithBiome(globalX, globalZ);
+                    // Ensure height (h) is clamped within valid bounds
+                    if (h < 0) h = 0;
+                    if (h >= WORLD_HEIGHT) h = WORLD_HEIGHT - 1;
+
+                    // Fill lower layers with stone and top with dirt for plains
+                    for (let y = 0; y < h; y++) {
+                        data[x][y][z] = 1; // Stone
                     }
+                    data[x][h][z] = 2; // Dirt for plains
+
+                    // Generate structures based on biome data
+                    const biome = biomes["plains"];
+                    biome.structures.forEach(structure => {
+                        if (Math.random() < structure.frequency) {
+                            if (structure.type === "tree") {
+                                generateTree(data, x, h + 1, z);
+                            } else if (structure.type === "house") {
+                                generateHouse(data, x, h + 1, z);
+                            }
+                        }
+                    });
                 }
             }
+
             return data;
         }
 
