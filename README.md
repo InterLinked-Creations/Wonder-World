@@ -6,4 +6,10 @@ Modes: None<br>
 Mobs: None<br>
 Items: Dirt<br>
 
+If you like the game, even in it's Alpha Stage, please give it a star, and watch this repo to recieve updates on new content!
+
+# Credits
+<b>Developers:</b> Alex Fischer
+
+# Copyrights
 © 2025 InterLinked Creations. All rights reserved.
