@@ -31,21 +31,185 @@
         z-index: 999;
         display: none;
     }
+    /* START: Loading Screen CSS */
+    #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #fff;
+        font-family: sans-serif;
+        z-index: 10000;
+    }
+    #loading-progress-container {
+        width: 70%;
+        max-width: 400px;
+        height: 20px;
+        background: #333;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    #loading-progress-bar {
+        width: 0%;
+        height: 100%;
+        background: #4caf50;
+        transition: width 0.3s;
+    }
+    #loading-text {
+        font-size: 14px;
+        text-align: center;
+        padding: 0 20px;
+        min-height: 20px;
+    }
+    /* END: Loading Screen CSS */
 
+    /* START: Pause Screen CSS */
+    #pause-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+    }
+    #pause-header {
+        width: 100%;
+        background: gray;
+        padding: 20px;
+        text-align: center;
+    }
+    #pause-header .title-1 {
+        font-size: 48px;
+        color: red;
+        margin: 0;
+    }
+    #pause-header .title-2 {
+        font-size: 48px;
+        color: blue;
+        margin: 0;
+    }
+    #pause-header .version {
+        font-size: 20px;
+        color: green;
+        margin: 0;
+    }
+    #pause-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    #pause-buttons button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    /* END: Pause Screen CSS */
+
+    /* Loading Screen Styles */
+    #loadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 9999;
+    }
+    #progressBar {
+      width: 50%;
+      height: 20px;
+      background: #444;
+      margin-top: 20px;
+    }
+    #progressBarInner {
+      width: 0%;
+      height: 100%;
+      background: #0f0;
+    }
+    #loadingTip {
+      margin-top: 10px;
+      font-style: italic;
+    }
     </style>
 </head>
 <body>
     <div id="info">
-    Wonder World Version Alpha.8.3.6
+        Version: Alpha.8.3.6
     </div>
     <!-- New underwater overlay element -->
     <div id="underwater-overlay"></div>
+
+    <!-- START: Loading Screen HTML -->
+    <div id="loading-screen">
+        <div id="loading-progress-container">
+            <div id="loading-progress-bar"></div>
+        </div>
+        <div id="loading-text"></div>
+    </div>
+    <!-- END: Loading Screen HTML -->
+
+    <!-- START: Pause Screen HTML -->
+    <div id="pause-screen">
+        <div id="pause-header">
+            <h1 class="title-1">Wonder</h1>
+            <h1 class="title-2">World</h1>
+            <p class="version">Version Alpha.8.3.6</p>
+        </div>
+        <div id="pause-buttons">
+            <button id="pause-resume">Resume</button>
+            <button id="pause-settings">Settings</button>
+            <button id="pause-save">Save World</button>
+            <button id="pause-quit">Quit World</button>
+        </div>
+    </div>
+    <!-- END: Pause Screen HTML -->
+
+
+
     <!-- Load Three.js from a CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <!-- ImprovedNoise with Random Permutation -->
     <script>
     const none = null;
+
+    const loadingText = [
+        "You can fly by double-tapping the jump button.",
+        "You will be able to toggle between game modes by pressing the 'O' key.",
+        "You can now double-tap the 'W' key to run faster.",
+        "What kind of builds will you create, today?",
+        "In Wonder World Version Alpha.8.3.6, you can only place dirt.",
+        "Did you know, most of Wonder World's code was written by AI? Don't worry, though, I (the developer) still carefully review and edit the code.",
+        "<span style='font-size: 7px;'>If you can read this, you're sitting too close to the screen!</span>",  
+        "We tried using quantum computing… but the qubits got lost in another dimension.",  
+        "Pressing buttons does things. Some of them useful, some of them… interesting.",  
+        "Running on pure imagination… and probably some spaghetti code.",  
+        "Wonder World is made with magic, hope, and at least two gallons of coffee.",  
+        "Tried to make the water wet. Turns out, it was already wet.",  
+        "Every update adds something. What that something is… remains classified.",  
+        "Achievement Unlocked: You found the loading screen!",  
+        "Physics? Who needs physics in a game world?",  
+        "Remember: If something is acting weird, it's not a bug. It's a feature.",  
+        "Breaking news: Wonder World still doesn't have ray tracing. But hey, the sun works!",
+    ]
     
     // Add a seeded random generator function:
     function seededRandomGenerator(seed) {
@@ -134,7 +298,83 @@
     const CHUNK_SIZE = 16;         // Blocks per side of a chunk
     const WORLD_HEIGHT = 216;        // Vertical blocks per chunk
     const WORLD_CHUNK_COUNT = 100;   // World chunk grid
-    const VISIBLE_RADIUS = 6;        // Load chunks within a certain radius
+    const VISIBLE_RADIUS = 12;        // Load chunks within a certain radius
+
+    // The LOADING_REQUIREMENTS constant is used to define how the loading screen will behave.
+    // "Local" means it only need to load and render chunks within the visible radius.
+    // "Global" means it needs to preload all chunks in the world and render the local ones.
+    const LOADING_REQUIREMENTS = "Local"; // NOT IMPLEMENTED YET
+
+    // Load saved world data if available before chunk generation
+    const loadSavedWorldPromise = (async function loadSavedWorld() {
+        try {
+            const response = await fetch('/savedWorlds/alphaWorld/world.json');
+            if (response.ok) {
+                const data = await response.json();
+                chunkDataStore = data;
+                console.log('Loaded saved world data.');
+            } else {
+                console.log('No saved world file found. Generating new world.');
+            }
+        } catch (err) {
+            console.error('Error loading saved world:', err);
+        }
+    })();
+
+    // START: Loading Screen Logic
+    let isLoading = true;
+    let forcePlay = false; // Force play to skip loading screen (for testing)
+    const loadingScreenEl = document.getElementById('loading-screen');
+    const loadingBarEl = document.getElementById('loading-progress-bar');
+    const loadingTextEl = document.getElementById('loading-text');
+    let loadedInitialChunksCount = 0;
+    let loadingStartTime = Date.now();
+    let minLoadingTime = 2000; // Minimum loading time in ms
+    let hasStartedChunkLoading = false;
+    
+    // We'll use a dynamic loading approach - load a minimum number of chunks around the player
+    let totalInitialChunksToLoad = Math.min(25, (2 * 3 + 1) ** 2); // Load at least 25 chunks or 7x7 area
+    
+    function showRandomLoadingText() {
+        const idx = Math.floor(Math.random() * loadingText.length);
+        loadingTextEl.innerHTML = loadingText[idx];
+    }
+    function updateLoadingBar() {
+        const timePassed = Date.now() - loadingStartTime;
+        const timeProgress = Math.min(timePassed / minLoadingTime, 1);
+        const chunkProgress = Math.min(loadedInitialChunksCount / totalInitialChunksToLoad, 1);
+        
+        // Use the maximum of time-based and chunk-based progress
+        const pct = Math.max(timeProgress, chunkProgress) * 100;
+        loadingBarEl.style.width = pct + '%';
+        
+        // Complete loading if we have minimum chunks AND minimum time has passed
+        if ((loadedInitialChunksCount >= Math.min(totalInitialChunksToLoad, 10) && timePassed >= minLoadingTime) || forcePlay) {
+            loadingTextEl.innerHTML = "Loading complete!";
+            clearInterval(loadingInterval);
+            setTimeout(completeLoading, 500);
+        }
+    }
+    // Called when each initial chunk finishes loading
+    function chunkLoaded() {
+        loadedInitialChunksCount++;
+        updateLoadingBar();
+    }
+    function completeLoading() {
+        loadingScreenEl.style.display = 'none';
+        isLoading = false;
+        // Prompt for pointer lock after user click
+        document.addEventListener('click', function unlockPointer() {
+          renderer.domElement.requestPointerLock();
+          document.removeEventListener('click', unlockPointer);
+        });
+    }
+    // Show loading screen and start text updates
+    loadingScreenEl.style.display = 'flex';
+    showRandomLoadingText();
+    let loadingInterval = setInterval(showRandomLoadingText, 10000);
+    updateLoadingBar();
+    // END: Loading Screen Logic
 
     // Biome Data  
     /********************************************
@@ -170,8 +410,8 @@
                 { type: "dirt", number: "2-5" },
             ],
             structures: [
-                { type: "tree", frequency: 0.05 },
-                { type: "house", frequency: 0.001 }
+                { type: "tree", frequency: 0.5 },
+                { type: "house", frequency: 0.01 }
             ]
         },
         hills: {
@@ -187,7 +427,7 @@
                 
             ],
             structures: [
-                { type: "tree", frequency: 0.02 },
+                { type: "tree", frequency: 0.002 } // Reduced from 0.02 to 0.002 (0.2%)
             ]
         },
         ocean: {
@@ -216,16 +456,174 @@
         water: 7 // new water block type
     };
 
+    // Structure Generators - Methods for generating different structures
+    const StructureGenerators = {
+        // Generate a tree at the given position
+        tree: function(data, x, y, z) {
+            const height = 4 + Math.floor(Math.random() * 3); // Tree height 4-6 blocks
+            const leafRadius = 2;
+            
+            // Generate trunk
+            for (let dy = 0; dy < height; dy++) {
+                if (y + dy >= WORLD_HEIGHT) break;
+                data[x][y + dy][z] = BLOCK_TYPES.wood;
+            }
+            
+            // Generate leaves
+            for (let dx = -leafRadius; dx <= leafRadius; dx++) {
+                for (let dy = -1; dy <= 2; dy++) {
+                    for (let dz = -leafRadius; dz <= leafRadius; dz++) {
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+                        if (dist <= leafRadius + 0.5) {
+                            const lx = x + dx;
+                            const ly = y + height - 1 + dy;
+                            const lz = z + dz;
+                            if (lx >= 0 && lx < CHUNK_SIZE && 
+                                ly >= 0 && ly < WORLD_HEIGHT && 
+                                lz >= 0 && lz < CHUNK_SIZE) {
+                                if (data[lx][ly][lz] === 0) {
+                                    data[lx][ly][lz] = BLOCK_TYPES.leaves;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        
+        // Generate a house at the given position
+        house: function(data, x, y, z) {
+            const width = 5;
+            const length = 7;
+            const height = 4;
+            
+            // Check if we have enough space in chunk
+            if (x + width >= CHUNK_SIZE || z + length >= CHUNK_SIZE) return;
+            if (y + height >= WORLD_HEIGHT) return;
+            
+            // Generate floor
+            for (let dx = 0; dx < width; dx++) {
+                for (let dz = 0; dz < length; dz++) {
+                    data[x + dx][y][z + dz] = BLOCK_TYPES.stone;
+                }
+            }
+            
+            // Generate walls
+            for (let dy = 1; dy < height; dy++) {
+                for (let dx = 0; dx < width; dx++) {
+                    for (let dz = 0; dz < length; dz++) {
+                        // Skip if it's not a wall block
+                        if (dx > 0 && dx < width - 1 && dz > 0 && dz < length - 1) continue;
+                        data[x + dx][y + dy][z + dz] = BLOCK_TYPES.wood;
+                    }
+                }
+            }
+            
+            // Generate roof
+            for (let dx = 0; dx < width; dx++) {
+                for (let dz = 0; dz < length; dz++) {
+                    data[x + dx][y + height][z + dz] = BLOCK_TYPES.wood;
+                }
+            }
+            
+            // Add a door (2 blocks high)
+            const doorX = x + Math.floor(width / 2);
+            const doorZ = z;
+            data[doorX][y + 1][doorZ] = 0;
+            data[doorX][y + 2][doorZ] = 0;
+            
+            // Add windows
+            const windowY = y + 2;
+            // Front windows
+            data[x + 1][windowY][z] = 0;
+            data[x + width - 2][windowY][z] = 0;
+            // Back windows
+            data[x + 1][windowY][z + length - 1] = 0;
+            data[x + width - 2][windowY][z + length - 1] = 0;
+            // Side windows
+            data[x][windowY][z + Math.floor(length / 2)] = 0;
+            data[x + width - 1][windowY][z + Math.floor(length / 2)] = 0;
+        }
+    };
+
     // Updated blockColors to use block type names with Color and transparency properties.
     const blockColors = {
-        stone: { color: new THREE.Color(0x888888), transparency: 1, sideRendering: "one" },
-        dirt: { color: new THREE.Color(0x664422), transparency: 1, sideRendering: "one" },
-        wood: { color: new THREE.Color(0x885522), transparency: 1, sideRendering: "one" },
+        stone: { color: "blocks/Stone.png", transparency: 1, sideRendering: "one" },
+        dirt: { color: "blocks/Grass_Side.png", faces: {top: "blocks/Grass.png"}, transparency: 1, sideRendering: "one" },
+        wood: { color: "blocks/Log_Side.png", faces: {top: "blocks/Log_Top.png", bottom: "blocks/Log_Top.png"}, transparency: 1, sideRendering: "one" },
         leaves: { color: new THREE.Color(0x88cc88), transparency: 1, sideRendering: "one" },
-        sand: { color: new THREE.Color(0xD2B48C), transparency: 1, sideRendering: "one" },
-        snow: { color: new THREE.Color(0xFFFFFF), transparency: 1, sideRendering: "one" },
-        water: { color: new THREE.Color(0x3366FF), transparency: 0.7, sideRendering: "both" } // water is transparent
+        sand: { color: "blocks/Sand.png", transparency: 1, sideRendering: "one" },
+        snow: { color: new THREE.Color(0xffffff), transparency: 1, sideRendering: "one" },
+        water: { color: "blocks/Water2.png", transparency: 0.7, sideRendering: "both", alphaTest: 0.1, seeThrough: true } // Updated water settings
     };
+
+    // Texture support: preload textures for blocks that specify an image path in blockColors
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.crossOrigin = "anonymous";
+    
+    // Function to handle texture loading errors
+    function onTextureLoadError(blockName, texturePath) {
+        console.error(`Failed to load texture for ${blockName}: ${texturePath}`);
+    }
+
+    // Load textures for each block type
+    Object.entries(blockColors).forEach(([name, props]) => {
+        // Handle base texture
+        if (typeof props.color === 'string') {
+            try {
+                props.texture = textureLoader.load(
+                    props.color,
+                    (texture) => {
+                        // Enable transparency for the texture
+                        texture.premultiplyAlpha = true;
+                        texture.format = THREE.RGBAFormat;
+                        // Store the block name in the texture's userData for later reference
+                        texture.userData = { blockName: name };
+                    },
+                    undefined,
+                    () => onTextureLoadError(name, props.color)
+                );
+                props.texture.wrapS = THREE.RepeatWrapping;
+                props.texture.wrapT = THREE.RepeatWrapping;
+                props.color = new THREE.Color(0xffffff);
+            } catch (e) {
+                console.error(`Error loading texture for ${name}:`, e);
+                props.color = new THREE.Color(0xff00ff); // Fallback color
+            }
+        }
+        
+        // Handle per-face textures
+        if (props.faces) {
+            Object.entries(props.faces).forEach(([face, val]) => {
+                if (typeof val === 'string') {
+                    try {
+                        const texture = textureLoader.load(
+                            val,
+                            (texture) => {
+                                // Enable transparency for the texture
+                                texture.premultiplyAlpha = true;
+                                texture.format = THREE.RGBAFormat;
+                                texture.userData = { blockName: name };
+                            },
+                            undefined,
+                            () => onTextureLoadError(name, val)
+                        );
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.RepeatWrapping;
+                        props.faces[face] = {
+                            texture: texture,
+                            color: props.color || new THREE.Color(0xffffff)
+                        };
+                    } catch (e) {
+                        console.error(`Error loading face texture for ${name}:`, e);
+                        props.faces[face] = {
+                            color: new THREE.Color(0xff00ff) // Fallback color
+                        };
+                    }
+                }
+            });
+        }
+    });
 
     // Helper to map BLOCK_TYPES number back to its name.
     function getBlockName(blockTypeNumber) {
@@ -236,7 +634,7 @@
     const playerHeight = 1.8;       
     const playerRadius = 0.3;       
     const jumpImpulse = 13; 
-    const worldSeed = 1;        
+    const worldSeed = 10;        
 
     // Global variables for rendering, scene, and input.
     let scene, renderer;
@@ -253,9 +651,64 @@
     let lastPlayerChunkX = null, lastPlayerChunkZ = null;
     let loadedChunks = {};    // keys: "cx,cz" -> mesh
     let chunkDataStore = {};  // keys: "cx,cz" -> 3D block array
+    
+    // Add frustum for visibility checking
+    const cameraFrustum = new THREE.Frustum();
+    const cameraViewMatrix = new THREE.Matrix4();
+    
+    // Use a priority queue for chunk loading
+    class PriorityQueue {
+        constructor() {
+            this.items = [];
+        }
+        
+        enqueue(item, priority) {
+            const queueItem = { item, priority };
+            let contain = false;
+            
+            for (let i = 0; i < this.items.length; i++) {
+                if (this.items[i].priority > priority) {
+                    this.items.splice(i, 0, queueItem);
+                    contain = true;
+                    break;
+                }
+            }
+            
+            if (!contain) {
+                this.items.push(queueItem);
+            }
+        }
+        
+        dequeue() {
+            if (this.isEmpty()) return null;
+            return this.items.shift().item;
+        }
+        
+        isEmpty() {
+            return this.items.length === 0;
+        }
+        
+        clear() {
+            this.items = [];
+        }
+        
+        size() {
+            return this.items.length;
+        }
+        
+        contains(key) {
+            return this.items.some(item => item.item.key === key);
+        }
+        
+        // Prune chunks from the queue that no longer meet criteria
+        prune(shouldKeepFn) {
+            this.items = this.items.filter(queueItem => shouldKeepFn(queueItem.item));
+        }
+    }
+    
+    const chunkQueue = new PriorityQueue();
 
     // Noise generator and raycaster for block interactions.
-    const noiseGenerator = new ImprovedNoise();
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
@@ -271,6 +724,81 @@
 
     // Add global game mode variable (default "normal")
     let gameMode = "normal"; // "normal" or "spectator"
+
+    // FPS and game info tracking
+    let fpsCounter = 0;
+    let fpsLastTime = performance.now();
+    let currentFPS = 0;
+    let chunkUpdatesThisSecond = 0;
+    let chunkUpdatesLastTime = performance.now();
+    let showDebugInfo = true; // Toggle for debug info display
+
+    // Function to update game info display
+    function updateGameInfo() {
+        const playerPos = yawObject.position;
+        const chunksInMemory = Object.keys(chunkDataStore).length;
+        const chunksLoaded = Object.keys(loadedChunks).length;
+        const chunksInQueue = chunkQueue.size();
+        const entities = 0; // Not implemented yet
+        const chunksBeingProcessed = pendingChunks.size;
+        
+        // Format position to 2 decimal places
+        const posX = playerPos.x.toFixed(2);
+        const posY = playerPos.y.toFixed(2);
+        const posZ = playerPos.z.toFixed(2);
+        
+        // Calculate chunk coordinates
+        const chunkX = Math.floor(playerPos.x / CHUNK_SIZE);
+        const chunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
+        
+        // Create status indicators
+        const statusIndicators = [];
+        if (isFlying) statusIndicators.push('<span style="color: #ffff00;">Flying</span>');
+        if (isInWater()) statusIndicators.push('<span style="color: #00ffff;">In Water</span>');
+        if (isRunning) statusIndicators.push('<span style="color: #00ff00;">Running</span>');
+        
+        // Update info display
+        const infoElement = document.getElementById('info');
+        infoElement.innerHTML = `
+            <div style="background: rgba(0,0,0,0.7); padding: 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; font-family: 'Courier New', monospace; max-width: 280px;">
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.8.3.6</div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #88ff88;">Performance:</div>
+                    <div style="margin-left: 10px;">FPS: <span style="color: ${currentFPS >= 60 ? '#00ff00' : currentFPS >= 30 ? '#ffff00' : '#ff0000'}">${currentFPS}</span></div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #88ccff;">Chunks:</div>
+                    <div style="margin-left: 10px;">
+                        Memory: ${chunksInMemory}<br>
+                        Loaded: ${chunksLoaded}<br>
+                        Queue: ${chunksInQueue}<br>
+                        Processing: ${chunksBeingProcessed}<br>
+                        Updates/sec: ${chunkUpdatesThisSecond}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #ffcc88;">Position:</div>
+                    <div style="margin-left: 10px;">
+                        World: ${posX}, ${posY}, ${posZ}<br>
+                        Chunk: ${chunkX}, ${chunkZ}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #ff88ff;">Game:</div>
+                    <div style="margin-left: 10px;">
+                        Mode: ${gameMode}<br>
+                        Entities: ${entities}
+                    </div>
+                </div>
+                
+                ${statusIndicators.length > 0 ? `<div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.3);">${statusIndicators.join(' • ')}</div>` : ''}
+            </div>
+        `;
+    }
 
     const KEY = {}
 
@@ -386,7 +914,6 @@
     document.addEventListener("touchend", function(e) {
         cameraTouchStart = null;
     }, false);
-
     // END new touch button controls
 
     /********************************************
@@ -476,21 +1003,9 @@
         const key = `${cx},${cz}`;
         const chunkData = chunkDataStore[key];
         if (!chunkData) {
-            // For unloaded chunks, we need to determine if this block would actually exist
-            // Use the terrain generation logic to check if there would be a block here
-            const height = getHeightWithBiome(globalX, globalZ);
-            const biomeKey = getBiome(globalX, globalZ);
-            const biome = BIOMES[biomeKey];
-            
-            // If it's below ground level, there would be a block here
-            if (globalY < height) return BLOCK_TYPES[biome.defaultLayer];
-            
-            // Check for water fill in ocean biomes
-            if (biome.fill && biome.fill.type === "water" && globalY < biome.fill.height) {
-                return BLOCK_TYPES.water;
-            }
-            
-            return 0; // Air above ground level
+            // For unloaded chunks, queue them for loading
+            queueChunkLoad(cx, cz);
+            return 0; // Return air for now
         }
         
         const localX = globalX - cx * CHUNK_SIZE;
@@ -501,19 +1016,31 @@
         return block;
     }
 
+    // Helper function to check if player is in water
+    function isInWater() {
+        const pos = yawObject.position;
+        const x = Math.floor(pos.x);
+        const y = Math.floor(pos.y);
+        const z = Math.floor(pos.z);
+        
+        // Check blocks at player's body (from feet to head)
+        for (let dy = 0; dy <= Math.ceil(playerHeight); dy++) {
+            if (getBlockAt(x, y + dy, z) === BLOCK_TYPES.water) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function getBlockInChunk(chunkData, x, y, z) {
         if (y < 0 || y >= WORLD_HEIGHT) return 0;
         
-        // If the coordinates are outside this chunk, use getBlockAt to check neighboring chunks
-        if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) {
-            const cx = Math.floor(x / CHUNK_SIZE);
-            const cz = Math.floor(z / CHUNK_SIZE);
-            const globalX = x + chunkData.chunkX * CHUNK_SIZE;
-            const globalZ = z + chunkData.chunkZ * CHUNK_SIZE;
-            return getBlockAt(globalX, y, globalZ);
-        }
+        // Convert to global coordinates
+        const globalX = chunkData.chunkX * CHUNK_SIZE + x;
+        const globalZ = chunkData.chunkZ * CHUNK_SIZE + z;
         
-        return chunkData[x][y][z];
+        // Use getBlockAt for any coordinates - it will handle chunk boundaries
+        return getBlockAt(globalX, y, globalZ);
     }
 
     const faces = [
@@ -572,225 +1099,143 @@
         ]
         }
     ];
-
-    function getHeight(globalX, globalZ) {
-        const frequency = 0.05;
-        let noiseVal = noiseGenerator.noise(globalX * frequency, 0, globalZ * frequency);
-        return Math.floor(((noiseVal + 1) / 2) * (WORLD_HEIGHT - 1));
-    }
-
-    function getBiome(globalX, globalZ) {
-        let n = (noiseGenerator.noise(globalX * 0.001, 0, globalZ * 0.001) + 1) / 2;
-        let total = 0;
-        for (const key in BIOMES) {
-            total += BIOMES[key].rarity * BIOMES[key].size;
-        }
-        let threshold = n * total;
-        let cumulative = 0;
-        for (const key in BIOMES) {
-            cumulative += BIOMES[key].rarity * BIOMES[key].size;
-            if (threshold <= cumulative) {
-                return key;
-            }
-        }
-        return "ocean"; // fallback option
-    }
-
-    function getHeightWithBiome(globalX, globalZ) {
-        const currentBiomeKey = getBiome(globalX, globalZ);
-        const currentBiome = BIOMES[currentBiomeKey];
-        if (currentBiome.transition === "None") {
-            const nPrimary = noiseGenerator.noise(globalX * currentBiome.frequency, 0, globalZ * currentBiome.frequency);
-            return Math.floor(currentBiome.baseHeight + nPrimary * currentBiome.heightVariation);
-        } else {
-            // Set blend radius based on transition rate:
-            // "Full" gets a larger blend radius for greater smoothness, "Mostly" less so.
-            const blendRadius = (currentBiome.transition === "Full") ? 10 : 5;
-            let sumHeights = 0;
-            let totalWeight = 0;
-            // Sample nearby points to blend heights between biomes.
-            for (let dx = -blendRadius; dx <= blendRadius; dx++) {
-                for (let dz = -blendRadius; dz <= blendRadius; dz++) {
-                    const sampleBiomeKey = getBiome(globalX + dx, globalZ + dz);
-                    const sampleBiome = BIOMES[sampleBiomeKey];
-                    const nSample = noiseGenerator.noise((globalX + dx) * sampleBiome.frequency, 0, (globalZ + dz) * sampleBiome.frequency);
-                    const sampleHeight = sampleBiome.baseHeight + nSample * sampleBiome.heightVariation;
-                    const distance = Math.sqrt(dx * dx + dz * dz);
-                    const weight = Math.max(0, blendRadius - distance + 1);
-                    sumHeights += sampleHeight * weight;
-                    totalWeight += weight;
-                }
-            }
-            return Math.floor(sumHeights / totalWeight);
-        }
-    }
-
-    // Structure Generation
-    function generateTree(data, x, y, z) {
-        // Simple tree structure: trunk and leaves
-        for (let i = 0; i < 4; i++) {
-            if (y + i < WORLD_HEIGHT) data[x][y + i][z] = 3; // Trunk
-        }
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                if (x + dx >= 0 && x + dx < CHUNK_SIZE && z + dz >= 0 && z + dz < CHUNK_SIZE) {
-                    if (y + 4 < WORLD_HEIGHT) data[x + dx][y + 4][z + dz] = 4; // Leaves
-                }
-            }
-        }
-    }
-
-    function generateHouse(data, x, y, z, size=6) {
-        // Simple house structure: walls and roof
-        for (let dx = 0; dx < size; dx++) {
-            for (let dz = 0; dz < size; dz++) {
-                for (let dy = 0; dy < size; dy++) {
-                    if (x + dx < CHUNK_SIZE && z + dz < CHUNK_SIZE && y + dy < WORLD_HEIGHT) {
-                        if (dx === 0 || dx === size-1 || dz === 0 || dz === size-1) {
-                            data[x + dx][y + dy][z + dz] = 1; // Walls
-                        }
-                    }
-                }
-            }
-        }
-        for (let dx = 0; dx < size; dx++) {
-            for (let dz = 0; dz < size; dz++) {
-                if (x + dx < CHUNK_SIZE && z + dz < CHUNK_SIZE && y + size < WORLD_HEIGHT) {
-                    data[x + dx][y + size][z + dz] = 1; // Roof
-                }
-            }
-        }
-    }
-
-    // Chunk Data Generation
-    function generateChunkData(cx, cz) {
-        const data = [];
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-            data[x] = [];
-            for (let y = 0; y < WORLD_HEIGHT; y++) {
-                data[x][y] = [];
-                for (let z = 0; z < CHUNK_SIZE; z++) {
-                    data[x][y][z] = 0; // Initialize all blocks as air
-                }
-            }
-        }
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-            for (let z = 0; z < CHUNK_SIZE; z++) {
-                let globalX = cx * CHUNK_SIZE + x;
-                let globalZ = cz * CHUNK_SIZE + z;
-                // Select biome using smooth noise.
-                let biomeKey = getBiome(globalX, globalZ);
-                let biome = BIOMES[biomeKey];
-                let h = getHeightWithBiome(globalX, globalZ);
-                if (h < 0) h = 0;
-                if (h >= WORLD_HEIGHT) h = WORLD_HEIGHT - 1;
-                
-                // Determine layered column for (x,z)
-                let column = new Array(h).fill(0);
-                let remaining = h;
-                // Process the layers array from top to bottom.
-                if (biome.layers && biome.layers.length > 0) {
-                    for (let i = 0; i < biome.layers.length; i++) {
-                        // Parse thickness: supports "range" like "2-5" or a fixed value "3" or coordinate format "$min-max"
-                        let thicknessDef = biome.layers[i].number;
-                        let thickness = 0;
-                        if (typeof thicknessDef === "string") {
-                            // Remove any leading '$' if present
-                            thicknessDef = thicknessDef.startsWith("$") ? thicknessDef.slice(1) : thicknessDef;
-                            if (thicknessDef.indexOf("-") !== -1) {
-                                let parts = thicknessDef.split("-").map(s => parseInt(s));
-                                thickness = Math.floor(Math.random() * (parts[1] - parts[0] + 1)) + parts[0];
-                            } else {
-                                thickness = parseInt(thicknessDef);
-                            }
-                        } else {
-                            thickness = thicknessDef;
-                        }
-                        // Clamp thickness if more than remaining
-                        if (thickness > remaining) thickness = remaining;
-                        // Fill from (remaining - thickness) to (remaining - 1)
-                        for (let y = remaining - thickness; y < remaining; y++) {
-                            column[y] = BLOCK_TYPES[biome.layers[i].type];
-                        }
-                        remaining -= thickness;
-                        if (remaining <= 0) break;
-                    }
-                }
-                // Fill any remaining lower blocks with the defaultLayer.
-                for (let y = 0; y < remaining; y++) {
-                    column[y] = BLOCK_TYPES[biome.defaultLayer];
-                }
-                // Apply the column data into the chunk: y from 0 to h-1 gets set, others remain air.
-                for (let y = 0; y < h; y++) {
-                    data[x][y][z] = column[y];
-                }
-
-                // If biome.fill is defined, fill all air blocks from the very bottom to the fill height
-                if (biome.fill) {
-                    let fillHeight = Math.min(biome.fill.height, WORLD_HEIGHT);
-                    console.log(fillHeight);
-                    for (let y = 0; y < fillHeight; y++) {
-                        for (let x = 0; x < CHUNK_SIZE; x++) {
-                            for (let z = 0; z < CHUNK_SIZE; z++) {
-                                if (data[x][y][z] === 0) {
-                                    data[x][y][z] = BLOCK_TYPES[biome.fill.type];
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Generate structures based on biome data
-                if (biome.structures && biome.structures.length != 0) {
-                    biome.structures.forEach(structure => {
-                        if (Math.random() < structure.frequency / 50) {
-                            if (structure.type === "tree") {
-                                generateTree(data, x, h, z);
-                            } else if (structure.type === "house") {
-                                generateHouse(data, x, h , z);
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        return data;
-    }
+    // Add mapping from face index to face name for styling
+    const faceNames = ["left", "right", "bottom", "top", "back", "front"];
 
     // Build Chunk Geometry with Vertex Colors
     function buildChunkGeometry(chunkData, cx, cz) {
+        // Create separate arrays for each textured block type
+        const texturedGeometries = {};
         const oVertices = [], oIndices = [], oUVs = [], oColors = [];
         let oVertexCount = 0;
         const tVertices = [], tIndices = [], tUVs = [], tColors = [];
         let tVertexCount = 0;
+
+        // Helper function to check if a face should be culled
+        function shouldCullFace(blockType, neighborType, isNeighborChunkLoaded) {
+            // If the neighbor chunk isn't loaded, always cull that face
+            if (!isNeighborChunkLoaded) return true;
+            
+            // If there's no neighbor block, don't cull
+            if (!neighborType) return false;
+            
+            const blockName = getBlockName(blockType);
+            const neighborName = getBlockName(neighborType);
+            const blockProps = blockColors[blockName] || { transparency: 1 };
+            const neighborProps = blockColors[neighborName] || { transparency: 1 };
+            
+            // If the neighbor is the same block type, always cull
+            if (blockType === neighborType) return true;
+            
+            // If the neighbor is transparent or see-through, don't cull unless it's the same block type
+            if (neighborProps.transparency < 1 || neighborProps.seeThrough) return false;
+            
+            // Otherwise, cull if there's a neighbor block
+            return true;
+        }
+
         for (let x = 0; x < CHUNK_SIZE; x++) {
             for (let y = 0; y < WORLD_HEIGHT; y++) {
                 for (let z = 0; z < CHUNK_SIZE; z++) {
                     let blockType = chunkData[x][y][z];
                     if (blockType === 0) continue;
+                    
+                    const blockName = getBlockName(blockType);
+                    const colObj = blockColors[blockName] || { color: new THREE.Color(0xffffff), transparency: 1 };
+
                     for (let f = 0; f < faces.length; f++) {
                         const face = faces[f];
-                        const nx = x + face.dir[0],
-                              ny = y + face.dir[1],
-                              nz = z + face.dir[2];
-                        // Check neighbor from the current chunk; if out-of-bound, check global neighbor block
-                        let neighbor;
-                        if (nx < 0 || nx >= CHUNK_SIZE || nz < 0 || nz >= CHUNK_SIZE) {
-                            const globalXBlock = cx * CHUNK_SIZE + x + face.dir[0];
-                            const globalZBlock = cz * CHUNK_SIZE + z + face.dir[2];
-                            neighbor = getBlockAt(globalXBlock, y, globalZBlock);
+                        const faceName = faceNames[f];
+                        const nx = x + face.dir[0];
+                        const ny = y + face.dir[1];
+                        const nz = z + face.dir[2];
+                        
+                        // Get the actual global coordinates for proper neighbor checking
+                        const globalX = cx * CHUNK_SIZE + x;
+                        const globalZ = cz * CHUNK_SIZE + z;
+                        
+                        // Check neighbor block using global coordinates
+                        let neighbor = 0; // Default to air if out of bounds
+                        let isNeighborChunkLoaded = true;
+                        
+                        if (ny < 0 || ny >= WORLD_HEIGHT) {
+                            // Y out of bounds - treat as air
+                            neighbor = 0;
+                        } else if (nx < 0 || nx >= CHUNK_SIZE || nz < 0 || nz >= CHUNK_SIZE) {
+                            // At chunk boundary - use global coordinates
+                            const neighborGlobalX = globalX + face.dir[0];
+                            const neighborGlobalZ = globalZ + face.dir[2];
+                            const neighborCx = Math.floor(neighborGlobalX / CHUNK_SIZE);
+                            const neighborCz = Math.floor(neighborGlobalZ / CHUNK_SIZE);
+                            
+                            // Check if neighbor chunk exists
+                            const neighborKey = `${neighborCx},${neighborCz}`;
+                            if (chunkDataStore[neighborKey]) {
+                                const neighborLocalX = ((neighborGlobalX % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+                                const neighborLocalZ = ((neighborGlobalZ % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+                                neighbor = chunkDataStore[neighborKey][neighborLocalX][ny][neighborLocalZ];
+                            } else {
+                                isNeighborChunkLoaded = false;
+                            }
                         } else {
-                            neighbor = getBlockInChunk(chunkData, nx, ny, nz);
+                            // Within same chunk and within bounds
+                            neighbor = chunkData[nx][ny][nz];
                         }
-                        // For non-water blocks, if the neighbor exists, skip face generation.
-                        if (blockType !== BLOCK_TYPES.water && neighbor === BLOCK_TYPES.water) {
-                            // Intentional fall-through
-                        } else if (neighbor !== 0) {
+
+                        // Check if this face should be culled
+                        if (shouldCullFace(blockType, neighbor, isNeighborChunkLoaded)) {
                             continue;
                         }
-                        const blockName = getBlockName(blockType);
-                        const colObj = blockColors[blockName] || { color: new THREE.Color(0xffffff), transparency: 1 };
-                        
+
+                        // Get the texture for this face
+                        let faceTexture = null;
+                        if (colObj.faces && colObj.faces[faceName] && colObj.faces[faceName].texture) {
+                            faceTexture = colObj.faces[faceName].texture;
+                        } else if (colObj.texture) {
+                            faceTexture = colObj.texture;
+                        }
+
+                        // If we have a texture, add to the appropriate textured geometry
+                        if (faceTexture) {
+                            // Create geometry arrays for this texture if they don't exist
+                            const textureKey = blockName + (colObj.faces && colObj.faces[faceName] ? '_' + faceName : '');
+                            if (!texturedGeometries[textureKey]) {
+                                texturedGeometries[textureKey] = {
+                                    vertices: [],
+                                    indices: [],
+                                    uvs: [],
+                                    vertexCount: 0,
+                                    texture: faceTexture
+                                };
+                            }
+
+                            const geo = texturedGeometries[textureKey];
+                            for (let i = 0; i < 4; i++) {
+                                const v = face.vertices[i];
+                                geo.vertices.push(
+                                    cx * CHUNK_SIZE + x + v[0],
+                                    y + v[1],
+                                    cz * CHUNK_SIZE + z + v[2]
+                                );
+                            }
+                            // Modify UV coordinates based on face
+                            if (faceName === "left" || faceName === "right") {
+                                // Rotate -90 degrees
+                                geo.uvs.push(1, 0, 1, 1, 0, 1, 0, 0);
+                            } else {
+                                // Default UV mapping for other faces
+                                geo.uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+                            }
+                            geo.indices.push(
+                                geo.vertexCount, geo.vertexCount + 1, geo.vertexCount + 2,
+                                geo.vertexCount, geo.vertexCount + 2, geo.vertexCount + 3
+                            );
+                            geo.vertexCount += 4;
+                            continue;
+                        }
+
+                        // Handle non-textured faces
+                        const baseColor = colObj.color instanceof THREE.Color ? colObj.color : new THREE.Color(0xffffff);
                         if (colObj.transparency === 1) {
                             for (let i = 0; i < 4; i++) {
                                 const vertex = face.vertices[i];
@@ -799,7 +1244,7 @@
                                     y + vertex[1],
                                     cz * CHUNK_SIZE + z + vertex[2]
                                 );
-                                oColors.push(colObj.color.r, colObj.color.g, colObj.color.b);
+                                oColors.push(baseColor.r, baseColor.g, baseColor.b);
                             }
                             oUVs.push(0, 0, 1, 0, 1, 1, 0, 1);
                             oIndices.push(
@@ -815,7 +1260,7 @@
                                     y + vertex[1],
                                     cz * CHUNK_SIZE + z + vertex[2]
                                 );
-                                tColors.push(colObj.color.r, colObj.color.g, colObj.color.b);
+                                tColors.push(baseColor.r, baseColor.g, baseColor.b);
                             }
                             tUVs.push(0, 0, 1, 0, 1, 1, 0, 1);
                             tIndices.push(
@@ -828,7 +1273,12 @@
                 }
             }
         }
+
+        // Create geometries
         let opaqueGeometry = null, transparentGeometry = null;
+        const texturedMeshes = [];
+
+        // Create opaque geometry
         if (oVertices.length) {
             opaqueGeometry = new THREE.BufferGeometry();
             opaqueGeometry.setAttribute("position", new THREE.Float32BufferAttribute(oVertices, 3));
@@ -837,6 +1287,8 @@
             opaqueGeometry.setIndex(oIndices);
             opaqueGeometry.computeVertexNormals();
         }
+
+        // Create transparent geometry
         if (tVertices.length) {
             transparentGeometry = new THREE.BufferGeometry();
             transparentGeometry.setAttribute("position", new THREE.Float32BufferAttribute(tVertices, 3));
@@ -845,25 +1297,82 @@
             transparentGeometry.setIndex(tIndices);
             transparentGeometry.computeVertexNormals();
         }
-        return { opaque: opaqueGeometry, transparent: transparentGeometry };
+
+        // Create textured geometries
+        for (const [key, geo] of Object.entries(texturedGeometries)) {
+            if (geo.vertices.length) {
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute("position", new THREE.Float32BufferAttribute(geo.vertices, 3));
+                geometry.setAttribute("uv", new THREE.Float32BufferAttribute(geo.uvs, 2));
+                geometry.setIndex(geo.indices);
+                geometry.computeVertexNormals();
+                texturedMeshes.push({
+                    geometry: geometry,
+                    texture: geo.texture
+                });
+            }
+        }
+
+        return { opaque: opaqueGeometry, transparent: transparentGeometry, textured: texturedMeshes };
     }
 
     // Chunk Management
     function loadChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (loadedChunks[key]) return;
-        const chunkData = generateChunkData(cx, cz);
-        chunkDataStore[key] = chunkData;
+        
+        let chunkData = chunkDataStore[key];
+        if (!chunkData) {
+            // Queue chunk for generation by worker
+            queueChunkLoad(cx, cz);
+            
+            // Also queue neighboring chunks to ensure proper face culling
+            const neighbors = [
+                [cx - 1, cz], [cx + 1, cz],
+                [cx, cz - 1], [cx, cz + 1]
+            ];
+            
+            for (const [ncx, ncz] of neighbors) {
+                if (ncx >= 0 && ncx < WORLD_CHUNK_COUNT && 
+                    ncz >= 0 && ncz < WORLD_CHUNK_COUNT) {
+                    queueChunkLoad(ncx, ncz);
+                }
+            }
+            return;
+        }
+        
         const geoms = buildChunkGeometry(chunkData, cx, cz);
         const group = new THREE.Group();
+        
+        // Add opaque meshes first
         if (geoms.opaque) {
             const opaqueMaterial = new THREE.MeshLambertMaterial({
                 vertexColors: true,
-                side: THREE.FrontSide, // opaque blocks use one-sided rendering
+                side: THREE.FrontSide,
                 transparent: false
             });
             group.add(new THREE.Mesh(geoms.opaque, opaqueMaterial));
         }
+        
+        // Add textured meshes next, sorting by transparency
+        for (const texturedMesh of geoms.textured) {
+            const blockName = texturedMesh.texture.userData?.blockName;
+            const blockProps = blockColors[blockName] || {};
+            
+            const material = new THREE.MeshLambertMaterial({
+                map: texturedMesh.texture,
+                transparent: true,
+                side: blockProps.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
+                opacity: blockProps.transparency || 1,
+                alphaTest: blockProps.alphaTest || 0.1,
+                depthWrite: blockProps.transparency === 1 // Only write to depth buffer for fully opaque blocks
+            });
+            const mesh = new THREE.Mesh(texturedMesh.geometry, material);
+            mesh.renderOrder = blockProps.transparency < 1 ? 1 : 0; // Render transparent blocks last
+            group.add(mesh);
+        }
+        
+        // Add transparent meshes last
         if (geoms.transparent) {
             const transparentMaterial = new THREE.MeshLambertMaterial({
                 vertexColors: true,
@@ -872,8 +1381,11 @@
                 depthWrite: false,
                 opacity: blockColors.water.transparency
             });
-            group.add(new THREE.Mesh(geoms.transparent, transparentMaterial));
+            const mesh = new THREE.Mesh(geoms.transparent, transparentMaterial);
+            mesh.renderOrder = 1; // Render after opaque objects
+            group.add(mesh);
         }
+        
         scene.add(group);
         loadedChunks[key] = group;
     }
@@ -887,13 +1399,16 @@
                 if (obj.material) obj.material.dispose();
             });
             delete loadedChunks[key];
-            delete chunkDataStore[key];
         }
     }
 
     function updateChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (!chunkDataStore[key]) return;
+        
+        // Track chunk updates
+        chunkUpdatesThisSecond++;
+        
         if (loadedChunks[key]) {
             scene.remove(loadedChunks[key]);
             loadedChunks[key].traverse(obj => {
@@ -903,107 +1418,244 @@
         }
         const geoms = buildChunkGeometry(chunkDataStore[key], cx, cz);
         const group = new THREE.Group();
+
+        // Add opaque meshes first
         if (geoms.opaque) {
             const opaqueMaterial = new THREE.MeshLambertMaterial({
                 vertexColors: true,
                 side: THREE.FrontSide,
                 transparent: false
             });
-            group.add(new THREE.Mesh(geoms.opaque, opaqueMaterial));
+            const mesh = new THREE.Mesh(geoms.opaque, opaqueMaterial);
+            mesh.renderOrder = 0;
+            group.add(mesh);
         }
+
+        // Add textured meshes next, sorting by transparency
+        for (const texturedMesh of geoms.textured) {
+            const blockName = texturedMesh.texture.userData?.blockName;
+            const blockProps = blockColors[blockName] || {};
+            
+            const material = new THREE.MeshLambertMaterial({
+                map: texturedMesh.texture,
+                transparent: blockProps.transparency < 1,
+                side: blockProps.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
+                opacity: blockProps.transparency || 1,
+                alphaTest: blockProps.alphaTest || 0.1,
+                depthWrite: blockProps.transparency === 1 // Only write to depth buffer for fully opaque blocks
+            });
+            const mesh = new THREE.Mesh(texturedMesh.geometry, material);
+            mesh.renderOrder = blockProps.transparency < 1 ? 2 : 0; // Higher render order for transparent blocks
+            group.add(mesh);
+        }
+
+        // Add transparent meshes last with highest render order
         if (geoms.transparent) {
             const transparentMaterial = new THREE.MeshLambertMaterial({
                 vertexColors: true,
                 side: blockColors.water.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
                 transparent: true,
                 depthWrite: false,
-                opacity: blockColors.water.transparency
+                depthTest: true,
+                opacity: blockColors.water.transparency,
+                alphaTest: blockColors.water.alphaTest || 0.1
             });
-            group.add(new THREE.Mesh(geoms.transparent, transparentMaterial));
+            const mesh = new THREE.Mesh(geoms.transparent, transparentMaterial);
+            mesh.renderOrder = 2; // Ensure water renders after other transparent objects
+            group.add(mesh);
         }
+
         scene.add(group);
         loadedChunks[key] = group;
     }
 
     // Add chunk loading queue system
-    const chunkLoadQueue = [];
-    const MAX_CHUNKS_PER_FRAME = 2; // Adjust this value to balance performance
+    const MAX_CHUNKS_PER_FRAME = 4; // Increased from 2 since we're using a worker now
+    const chunkWorker = new Worker('chunkWorker.js');
+    const pendingChunks = new Map(); // Track chunks being processed by worker
+
+    // Helper function to strip texture data from block properties
+    function getSerializableBlockProperties(blockColors) {
+        const serializableProps = {};
+        for (const [name, props] of Object.entries(blockColors)) {
+            serializableProps[name] = {
+                transparency: props.transparency || 1,
+                seeThrough: props.seeThrough || false,
+                sideRendering: props.sideRendering || "one"
+            };
+        }
+        return serializableProps;
+    }
+
+    // Helper function to send chunk update to worker
+    function sendChunkUpdate(cx, cz, chunkData) {
+        chunkWorker.postMessage({
+            type: "updateChunk",
+            cx: cx,
+            cz: cz,
+            modifiedChunk: chunkData,
+            constants: {
+                blockColors: getSerializableBlockProperties(blockColors)
+            }
+        });
+    }
+
+    // Handle worker messages
+    chunkWorker.onmessage = function(e) {
+        const { cx, cz, geometryData, chunkData, type } = e.data;
+        const key = `${cx},${cz}`;
+        
+        // Track chunk updates
+        chunkUpdatesThisSecond++;
+        
+        // Fallback: if no geometryData but got chunkData, use legacy buildChunkGeometry
+        if (!geometryData && chunkData) {
+            // Store and render via existing methods
+            chunkData.chunkX = cx;
+            chunkData.chunkZ = cz;
+            chunkDataStore[key] = chunkData;
+            pendingChunks.delete(key);
+            if (loadedChunks[key]) {
+                updateChunk(cx, cz);
+            } else {
+                loadChunk(cx, cz);
+            }
+            if (isLoading) chunkLoaded();
+            return;
+        }
+
+        // Remove from pending queue
+        pendingChunks.delete(key);
+
+        // If this is an update for an existing chunk, remove old mesh
+        if (loadedChunks[key]) {
+            scene.remove(loadedChunks[key]);
+            loadedChunks[key].traverse(obj => { if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); });
+        }
+
+        // Build new group from raw geometryData
+        const group = new THREE.Group();
+
+        // Opaque
+        if (geometryData.opaque && geometryData.opaque.indices.length) {
+            const buf = geometryData.opaque;
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
+            geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
+            geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
+            geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+            geom.computeVertexNormals();
+            const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.renderOrder = 0;
+            group.add(mesh);
+        }
+
+        // Textured
+        if (geometryData.textured) {
+            for (const entry of geometryData.textured) {
+                const buf = entry;
+                const geom = new THREE.BufferGeometry();
+                geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
+                geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
+                geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+                geom.computeVertexNormals();
+                // Determine texture by key
+                const [blockName, face] = entry.key.split('_');
+                const texture = face && blockColors[blockName].faces && blockColors[blockName].faces[face]
+                    ? blockColors[blockName].faces[face].texture
+                    : blockColors[blockName].texture;
+                const props = blockColors[blockName];
+                const mat = new THREE.MeshLambertMaterial({
+                    map: texture,
+                    transparent: props.transparency < 1,
+                    side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
+                    opacity: props.transparency,
+                    alphaTest: props.alphaTest || 0.1,
+                    depthWrite: props.transparency === 1
+                });
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.renderOrder = props.transparency < 1 ? 2 : 0;
+                group.add(mesh);
+            }
+        }
+
+        // Transparent
+        if (geometryData.transparent && geometryData.transparent.indices.length) {
+            const buf = geometryData.transparent;
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
+            geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
+            geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
+            geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+            geom.computeVertexNormals();
+            const props = blockColors.water;
+            const mat = new THREE.MeshLambertMaterial({
+                vertexColors: true,
+                transparent: true,
+                depthWrite: false,
+                side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
+                opacity: props.transparency,
+                alphaTest: props.alphaTest || 0.1
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.renderOrder = 2;
+            group.add(mesh);
+        }
+
+        // Add to scene and track
+        scene.add(group);
+        loadedChunks[key] = group;
+
+        if (isLoading) chunkLoaded();
+    };
     
     function queueChunkLoad(cx, cz) {
         const key = `${cx},${cz}`;
-        if (loadedChunks[key] || chunkLoadQueue.some(item => item.key === key)) return;
-        chunkLoadQueue.push({ cx, cz, key });
+        if (loadedChunks[key] || chunkQueue.contains(key) || pendingChunks.has(key)) return;
+        
+        // Calculate distance to player for priority
+        const playerChunkX = Math.floor(yawObject.position.x / CHUNK_SIZE);
+        const playerChunkZ = Math.floor(yawObject.position.z / CHUNK_SIZE);
+        const distance = Math.sqrt(Math.pow(cx - playerChunkX, 2) + Math.pow(cz - playerChunkZ, 2));
+        
+        // Add to priority queue with distance as priority (lower distance = higher priority)
+        chunkQueue.enqueue({ cx, cz, key }, distance);
     }
     
     function processChunkQueue() {
-        let processedCount = 0;
-        while (chunkLoadQueue.length > 0 && processedCount < MAX_CHUNKS_PER_FRAME) {
-            const { cx, cz, key } = chunkLoadQueue.shift();
-            if (!loadedChunks[key]) {
-                const chunkData = generateChunkData(cx, cz);
-                chunkDataStore[key] = chunkData;
-                const geoms = buildChunkGeometry(chunkData, cx, cz);
-                const group = new THREE.Group();
-
-                const opaqueMaterial = new THREE.MeshLambertMaterial({
-                    vertexColors: true,
-                    side: THREE.FrontSide,
-                    transparent: false
-                });
-                const transparentMaterial = new THREE.MeshLambertMaterial({
-                    vertexColors: true,
-                    side: blockColors.water.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
-                    transparent: true,
-                    depthWrite: false,
-                    opacity: blockColors.water.transparency
-                });
-
-                if (geoms.opaque) {
-                    group.add(new THREE.Mesh(geoms.opaque, opaqueMaterial));
-                }
-                if (geoms.transparent) {
-                    group.add(new THREE.Mesh(geoms.transparent, transparentMaterial));
-                }
-                
-                // Add fade-in effect
-                group.traverse(child => {
-                    if (child instanceof THREE.Mesh) {
-                        child.material.opacity = 0;
-                        child.material.transparent = true;
-                    }
-                });
-                
-                scene.add(group);
-                loadedChunks[key] = group;
-                
-                // Animate chunk fade-in
-                const startTime = performance.now();
-                const fadeInDuration = 500; // milliseconds
-                function fadeIn() {
-                    const elapsed = performance.now() - startTime;
-                    const progress = Math.min(elapsed / fadeInDuration, 1);
-                    group.traverse(child => {
-                        if (child instanceof THREE.Mesh) {
-                            if (child.material.userData.originalOpacity === undefined) {
-                                child.material.userData.originalOpacity = child.material === transparentMaterial ? 
-                                    blockColors.water.transparency : 1;
-                            }
-                            child.material.opacity = progress * child.material.userData.originalOpacity;
-                        }
-                    });
-                    if (progress < 1) {
-                        requestAnimationFrame(fadeIn);
-                    } else {
-                        group.traverse(child => {
-                            if (child instanceof THREE.Mesh && child.material.userData.originalOpacity === 1) {
-                                child.material.transparent = false;
-                            }
-                        });
+        const startTime = performance.now();
+        const TIME_BUDGET = 16; // Try to keep chunk processing under 16ms per frame
+        
+        while (!chunkQueue.isEmpty() && 
+               pendingChunks.size < MAX_CHUNKS_PER_FRAME && 
+               performance.now() - startTime < TIME_BUDGET) {
+            
+            const { cx, cz, key } = chunkQueue.dequeue();
+            
+            // Skip if chunk is already loaded or being processed
+            if (loadedChunks[key] || pendingChunks.has(key)) continue;
+            
+            // Mark chunk as pending
+            pendingChunks.set(key, true);
+            
+            // Send chunk generation request to worker with block properties
+            chunkWorker.postMessage({
+                cx, 
+                cz,
+                constants: {
+                    CHUNK_SIZE,
+                    WORLD_HEIGHT,
+                    BLOCK_TYPES,
+                    BIOMES,
+                    worldSeed,
+                    blockColors: getSerializableBlockProperties(blockColors),
+                    StructureGenerators: {
+                        tree: StructureGenerators.tree.toString(),
+                        house: StructureGenerators.house.toString()
                     }
                 }
-                fadeIn();
-                processedCount++;
-            }
+            });
         }
     }
     
@@ -1013,34 +1665,136 @@
         let playerChunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
         playerChunkX = Math.max(0, Math.min(WORLD_CHUNK_COUNT - 1, playerChunkX));
         playerChunkZ = Math.max(0, Math.min(WORLD_CHUNK_COUNT - 1, playerChunkZ));
-
-        // Queue chunks in a spiral pattern from nearest to farthest
-        const spiralOffsets = [];
-        for (let radius = 0; radius <= VISIBLE_RADIUS; radius++) {
-            for (let x = -radius; x <= radius; x++) {
-                for (let z = -radius; z <= radius; z++) {
-                    if (Math.max(Math.abs(x), Math.abs(z)) === radius) {
-                        spiralOffsets.push({x, z});
+        
+        // Update camera frustum
+        camera.updateMatrix();
+        camera.updateMatrixWorld();
+        cameraViewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        cameraFrustum.setFromProjectionMatrix(cameraViewMatrix);
+        
+        // During loading, prioritize loading chunks around the player first
+        if (isLoading && !hasStartedChunkLoading) {
+            hasStartedChunkLoading = true;
+            // Load a 5x5 grid around player first for initial loading
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dz = -2; dz <= 2; dz++) {
+                    const cx = playerChunkX + dx;
+                    const cz = playerChunkZ + dz;
+                    if (cx >= 0 && cx < WORLD_CHUNK_COUNT && cz >= 0 && cz < WORLD_CHUNK_COUNT) {
+                        queueChunkLoad(cx, cz);
                     }
                 }
             }
         }
         
-        for (const offset of spiralOffsets) {
-            const cx = playerChunkX + offset.x;
-            const cz = playerChunkZ + offset.z;
-            if (cx >= 0 && cx < WORLD_CHUNK_COUNT && cz >= 0 && cz < WORLD_CHUNK_COUNT) {
-                queueChunkLoad(cx, cz);
+        // Calculate how far to check for chunks in view based on view frustum
+        const loadDistance = isLoading ? 3 : VISIBLE_RADIUS + 1; // Smaller radius during loading
+        
+        // Clear previous queue if player moved to a new chunk
+        if (lastPlayerChunkX !== playerChunkX || lastPlayerChunkZ !== playerChunkZ) {
+            if (!isLoading) { // Only clear queue after loading is complete
+                chunkQueue.clear();
+            }
+            lastPlayerChunkX = playerChunkX;
+            lastPlayerChunkZ = playerChunkZ;
+        }
+        
+        // Prune chunks from queue that are no longer in view or too far away (only after loading)
+        if (!isLoading) {
+            const beforeCount = chunkQueue.size();
+            chunkQueue.prune(({ cx, cz }) => {
+                // Distance check
+                const dx = cx - playerChunkX;
+                const dz = cz - playerChunkZ;
+                const distance = Math.sqrt(dx*dx + dz*dz);
+                
+                // Always keep very close chunks
+                if (distance <= 2) return true;
+                
+                // For farther chunks, check if they're still in view
+                if (distance > loadDistance) return false;
+                
+                // Create chunk bounds for frustum checking
+                const chunkMin = new THREE.Vector3(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
+                const chunkMax = new THREE.Vector3((cx + 1) * CHUNK_SIZE, WORLD_HEIGHT, (cz + 1) * CHUNK_SIZE);
+                const chunkBox = new THREE.Box3(chunkMin, chunkMax);
+                
+                // Keep if in frustum or close enough
+                return cameraFrustum.intersectsBox(chunkBox);
+            });
+            const afterCount = chunkQueue.size();
+            if (beforeCount !== afterCount) {
+                console.log(`Pruned ${beforeCount - afterCount} chunks from queue (${beforeCount} -> ${afterCount})`);
             }
         }
 
-        // Unload distant chunks
-        for (const key in loadedChunks) {
-            const [cx, cz] = key.split(",").map(Number);
-            const dx = cx - playerChunkX;
-            const dz = cz - playerChunkZ;
-            if (Math.max(Math.abs(dx), Math.abs(dz)) > VISIBLE_RADIUS + 1) {
-                unloadChunk(cx, cz);
+        // Check chunks in view frustum and prioritize by distance
+        for (let dx = -loadDistance; dx <= loadDistance; dx++) {
+            for (let dz = -loadDistance; dz <= loadDistance; dz++) {
+                const cx = playerChunkX + dx;
+                const cz = playerChunkZ + dz;
+                
+                if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) {
+                    continue;
+                }
+                
+                // During loading, load all chunks in the smaller radius
+                if (isLoading) {
+                    queueChunkLoad(cx, cz);
+                    continue;
+                }
+                
+                // Calculate chunk center position to check against frustum
+                const chunkCenterX = (cx + 0.5) * CHUNK_SIZE;
+                const chunkCenterY = WORLD_HEIGHT / 2;
+                const chunkCenterZ = (cz + 0.5) * CHUNK_SIZE;
+                
+                // Create chunk bounds for frustum checking
+                const chunkMin = new THREE.Vector3(
+                    cx * CHUNK_SIZE, 
+                    0, 
+                    cz * CHUNK_SIZE
+                );
+                
+                const chunkMax = new THREE.Vector3(
+                    (cx + 1) * CHUNK_SIZE, 
+                    WORLD_HEIGHT, 
+                    (cz + 1) * CHUNK_SIZE
+                );
+                
+                // Create bounding box for the chunk
+                const chunkBox = new THREE.Box3(chunkMin, chunkMax);
+                
+                // If chunk is in view frustum or very close to player, queue it
+                const distanceToPlayer = Math.sqrt(dx*dx + dz*dz);
+                
+                if (distanceToPlayer <= 2 || cameraFrustum.intersectsBox(chunkBox)) {
+                    queueChunkLoad(cx, cz);
+                }
+            }
+        }
+
+        // Unload chunks that are too far or not in view (only after loading is complete)
+        if (!isLoading) {
+            for (const key in loadedChunks) {
+                const [cx, cz] = key.split(",").map(Number);
+                
+                // Distance-based culling
+                const dx = cx - playerChunkX;
+                const dz = cz - playerChunkZ;
+                const distance = Math.sqrt(dx*dx + dz*dz);
+                
+                // Create chunk bounds for frustum checking
+                const chunkMin = new THREE.Vector3(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
+                const chunkMax = new THREE.Vector3((cx + 1) * CHUNK_SIZE, WORLD_HEIGHT, (cz + 1) * CHUNK_SIZE);
+                const chunkBox = new THREE.Box3(chunkMin, chunkMax);
+                
+                // Check if chunk is out of range or not in view frustum
+                const inFrustum = cameraFrustum.intersectsBox(chunkBox);
+                
+                if (distance > VISIBLE_RADIUS + 1 || (!inFrustum && distance > 2)) {
+                    unloadChunk(cx, cz);
+                }
             }
         }
     }
@@ -1049,35 +1803,56 @@
     function modifyBlockAt(worldPos, value) {
         // In spectator mode, disable interactions.
         if (gameMode === "spectator") return;
+        
         const gx = Math.floor(worldPos.x);
         const gy = Math.floor(worldPos.y);
         const gz = Math.floor(worldPos.z);
         const cx = Math.floor(gx / CHUNK_SIZE);
         const cz = Math.floor(gz / CHUNK_SIZE);
         const key = `${cx},${cz}`;
+        
         if (!chunkDataStore[key]) {
-        console.log("Chunk not loaded. Cannot modify block.");
-        return;
+            console.log("Chunk not loaded. Cannot modify block.");
+            return;
         }
+        
         const localX = gx - cx * CHUNK_SIZE;
         const localZ = gz - cz * CHUNK_SIZE;
-        if (
-        localX < 0 || localX >= CHUNK_SIZE ||
-        gy < 0 || gy >= WORLD_HEIGHT ||
-        localZ < 0 || localZ >= CHUNK_SIZE
-        ) {
-        console.log("Block coordinates out of range.");
-        return;
+        
+        if (gy < 0 || gy >= WORLD_HEIGHT) {
+            console.log("Block coordinates out of range.");
+            return;
         }
+        
+        // Modify the block
         chunkDataStore[key][localX][gy][localZ] = value;
-        updateChunk(cx, cz);
+        
+        // Send update to worker and wait for response before updating visuals
+        sendChunkUpdate(cx, cz, chunkDataStore[key]);
+
+        // Update affected chunks
+        const chunksToUpdate = new Set();
+        chunksToUpdate.add(key);
+        
+        // Add neighboring chunks if we're on a boundary
+        if (localX === 0 && cx > 0) chunksToUpdate.add(`${cx-1},${cz}`);
+        if (localX === CHUNK_SIZE - 1 && cx < WORLD_CHUNK_COUNT - 1) chunksToUpdate.add(`${cx+1},${cz}`);
+        if (localZ === 0 && cz > 0) chunksToUpdate.add(`${cx},${cz-1}`);
+        if (localZ === CHUNK_SIZE - 1 && cz < WORLD_CHUNK_COUNT - 1) chunksToUpdate.add(`${cx},${cz+1}`);
+
+        // Update all affected chunks
+        for (const chunkKey of chunksToUpdate) {
+            const [updateCx, updateCz] = chunkKey.split(',').map(Number);
+            if (chunkDataStore[chunkKey]) {
+                updateChunk(updateCx, updateCz);
+            }
+        }
     }
 
     // Initialization & Rendering & Input Handling
     function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x88ccff);
-        scene.fog = new THREE.Fog(0x88ccff, 0, 150);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1103,16 +1878,12 @@
         camera.position.set(0, 0.8 * playerHeight, 0);
         yawObject = new THREE.Object3D();
         
-        // Place the player near the center of the world; get ground height at starting x/z.
+        // Place the player near the center of the world
         let startX = (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2;
         let startZ = (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2;
-        // If the default position is ocean, offset coordinates to land
-        if (getBiome(startX, startZ) === "ocean") {
-            startX += CHUNK_SIZE;
-            startZ += CHUNK_SIZE;
-        }
-        let groundY = getHeightWithBiome(startX, startZ);
-        yawObject.position.set(startX, groundY + playerHeight, startZ);
+        let startY = 100; // Start high up and let gravity bring us down
+        yawObject.position.set(startX, startY, startZ);
+
         // Remove direct addition of camera and add it to a new holder for water effect
         cameraEffect = new THREE.Object3D();
         cameraEffect.add(camera);
@@ -1124,9 +1895,6 @@
         
         // Setup Pointer Lock.
         const element = document.body;
-        element.addEventListener("click", function () {
-        element.requestPointerLock();
-        });
         document.addEventListener("pointerlockchange", onPointerLockChange, false);
         document.addEventListener("pointerlockerror", onPointerLockError, false);
         document.addEventListener("mousemove", onMouseMove, false);
@@ -1145,7 +1913,14 @@
     }
 
     function onPointerLockChange() {
-        controlsEnabled = (document.pointerLockElement === document.body);
+        controlsEnabled = !isLoading && (document.pointerLockElement === document.body);
+        // Show or hide pause screen when unlocked
+        const pauseEl = document.getElementById('pause-screen');
+        if (!controlsEnabled && !isLoading) {
+            pauseEl.style.display = 'flex';
+        } else {
+            pauseEl.style.display = 'none';
+        }
     }
     function onPointerLockError() {
         console.error("PointerLock Error");
@@ -1191,28 +1966,28 @@
             }
             lastWPressTime = currentTime;
             moveForward = true;
-            Key["Forward"] = true;
+            KEY["Forward"] = true;
             break;
         case "KeyS":
         case "ArrowDown":
             moveBackward = true;
-            Key["Backward"] = true;
+            KEY["Backward"] = true;
             break;
         case "KeyA":
         case "ArrowLeft":
             moveLeft = true;
-            Key["Left"] = true;
+            KEY["Left"] = true;
             break;
         case "KeyD":
         case "ArrowRight":
             moveRight = true;
-            Key["Right"] = true;
+            KEY["Right"] = true;
             break;
         case "Space":
             // Detect double tap on jump (threshold 300ms)
             if (currentTime - lastJumpTapTime < 300) {
-                // Toggle flying mode only in normal mode
-                if (gameMode === "normal") {
+                // Toggle flying mode only in normal mode and when not in water
+                if (gameMode === "normal" && !isInWater()) {
                     isFlying = !isFlying;
                     console.log("Flying: " + isFlying);
                 }
@@ -1256,6 +2031,12 @@
                 console.log("Game Mode: Normal");
             }
             break;
+        case "F3":
+            // Toggle debug info display
+            event.preventDefault(); // Prevent browser dev tools
+            showDebugInfo = !showDebugInfo;
+            console.log("Debug Info: " + (showDebugInfo ? "On" : "Off"));
+            break;
         }
     }
 
@@ -1292,10 +2073,19 @@
     function onMouseDown(event) {
         // In spectator mode, disable interactions.
         if (gameMode === "spectator") return;
-        pointer.set(0, 0);
+        // Disable mining/placing when pointer lock not active
+        if (!controlsEnabled) return;
+        // Set pointer coordinates: use screen coords when unlocked, center when locked
+        if (document.pointerLockElement === document.body) {
+            pointer.set(0, 0);
+        } else {
+            pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        }
         raycaster.setFromCamera(pointer, camera);
-        const intersects = raycaster.intersectObjects(Object.values(loadedChunks));
-        if (intersects.length > 0) {
+        // Include all meshes in nested groups
+        const intersects = raycaster.intersectObjects(Object.values(loadedChunks), true);
+        if (intersects.length >  0) {
         const intersect = intersects[0];
         if (event.button === 0) { // Left click: break block.
             const breakPos = new THREE.Vector3(
@@ -1323,6 +2113,32 @@
         const time = performance.now();
         const delta = Math.min((time - prevTime) / 1000, 0.1);
         prevTime = time;
+
+        // Calculate FPS
+        fpsCounter++;
+        if (time - fpsLastTime >= 1000) {
+            currentFPS = Math.round((fpsCounter * 1000) / (time - fpsLastTime));
+            fpsCounter = 0;
+            fpsLastTime = time;
+            
+            // Reset chunk updates counter
+            chunkUpdatesThisSecond = 0;
+            chunkUpdatesLastTime = time;
+        }
+
+        // Update game info display every frame
+        if (!isLoading && showDebugInfo) {
+            updateGameInfo();
+        } else if (!showDebugInfo) {
+            // Hide debug info but keep version
+            const infoElement = document.getElementById('info');
+            infoElement.innerHTML = `
+                <div style="background: rgba(0,0,0,0.7); padding: 8px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace;">
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.8.3.6</div>
+                    <div style="margin-top: 4px; font-size: 10px; color: #cccccc;">Press F3 to toggle debug info</div>
+                </div>
+            `;
+        }
     
         if (controlsEnabled) {
             if (gameMode === "spectator") {
@@ -1339,13 +2155,55 @@
                 if (flyDown) { yawObject.position.y -= 30 * delta; }
             } else {
                 if (!isFlying) {
-                    velocity.x -= velocity.x * 10 * delta;
-                    velocity.z -= velocity.z * 10 * delta;
-                    velocity.y -= 9.8 * 5 * delta; // Gravity
-
-                    const accel = getMovementAcceleration(delta);
-                    velocity.x += accel.x;
-                    velocity.z += accel.z;
+                    const inWater = isInWater();
+                    
+                    // Water physics
+                    if (inWater) {
+                        // Slower movement in water (5/2 times slower)
+                        const waterMovementFactor = 0.4; // 1 / (5/2)
+                        
+                        // Reduced gravity and fall speed in water
+                        const waterGravity = 9.8 * 1.5; // Reduced gravity
+                        const waterDrag = 0.8; // Water resistance
+                        
+                        // Apply water physics
+                        velocity.x -= velocity.x * 3 * delta; // More drag in water
+                        velocity.z -= velocity.z * 3 * delta;
+                        
+                        // Gradually slow down if falling too fast
+                        if (velocity.y < -waterGravity) {
+                            velocity.y = THREE.MathUtils.lerp(velocity.y, -waterGravity, delta * 3);
+                        } else {
+                            velocity.y -= waterGravity * delta;
+                        }
+                        
+                        // Handle vertical movement in water
+                        if (KEY["Jump"]) {
+                            // Float up when holding jump
+                            velocity.y = Math.min(velocity.y + 20 * delta, 8);
+                        } else {
+                            // Slowly sink when not holding jump
+                            velocity.y = Math.max(velocity.y - 10 * delta, -4);
+                        }
+                        
+                        // Apply movement with water resistance
+                        const accel = getMovementAcceleration(delta);
+                        velocity.x += accel.x * waterMovementFactor;
+                        velocity.z += accel.z * waterMovementFactor;
+                        
+                        // Apply water drag
+                        velocity.multiplyScalar(waterDrag);
+                        
+                    } else {
+                        // Normal physics
+                        velocity.x -= velocity.x * 10 * delta;
+                        velocity.z -= velocity.z * 10 * delta;
+                        velocity.y -= 9.8 * 5 * delta; // Gravity
+                        
+                        const accel = getMovementAcceleration(delta);
+                        velocity.x += accel.x;
+                        velocity.z += accel.z;
+                    }
 
                     yawObject.position.x += velocity.x * delta;
                     yawObject.position.z += velocity.z * delta;
@@ -1407,7 +2265,40 @@
         renderer.render(scene, camera);
     }
 
-    init();
+    // Setup Pause Screen Button Handlers
+    const resumeBtn = document.getElementById('pause-resume');
+    const settingsBtn = document.getElementById('pause-settings');
+    const saveBtn = document.getElementById('pause-save');
+    const quitBtn = document.getElementById('pause-quit');
+    resumeBtn.addEventListener('click', () => {
+        document.body.requestPointerLock();
+    });
+    // Replace Settings placeholder with FOV prompt
+    settingsBtn.addEventListener('click', () => {
+        const currentFov = camera.fov;
+        const input = prompt('Set Field of View (FOV) between 10 and 150:', currentFov);
+        const newFov = parseFloat(input);
+        if (!isNaN(newFov) && newFov > 10 && newFov < 150) {
+            camera.fov = newFov;
+            camera.updateProjectionMatrix();
+       
+        } else if (input !== null) {
+            alert('Invalid FOV value. Please enter a number between 10 and 150.');
+        }
+    });
+    saveBtn.addEventListener('click', () => {
+        // Placeholder for save functionality
+        alert('Save feature is not implemented yet.');
+    });
+    quitBtn.addEventListener('click', () => {
+               // Placeholder for quit functionality
+        alert('Quit feature is not implemented yet.');
+    });
+
+    // Wait for saved world load before initialization and chunk generation
+    loadSavedWorldPromise.then(() => {
+        init();
+    });
     </script>
 </body>
 </html>
