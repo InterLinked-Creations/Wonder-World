@@ -8,12 +8,62 @@ let blockColors; // Will be populated from main thread
 const chunkStorage = new Map();
 const neighborChunks = new Map(); // Store neighboring chunks for proper culling
 
+// Define cube faces for geometry creation
+const faces = [
+    // Front face
+    { 
+        dir: [0, 0, 1], 
+        vertices: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]
+    },
+    // Back face
+    { 
+        dir: [0, 0, -1], 
+        vertices: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]
+    },
+    // Right face
+    { 
+        dir: [1, 0, 0], 
+        vertices: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]]
+    },
+    // Left face
+    { 
+        dir: [-1, 0, 0], 
+        vertices: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]]
+    },
+    // Top face
+    { 
+        dir: [0, 1, 0], 
+        vertices: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]]
+    },
+    // Bottom face
+    { 
+        dir: [0, -1, 0], 
+        vertices: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]
+    }
+];
+
+// Names of the faces for texture mapping
+const faceNames = ["front", "back", "right", "left", "top", "bottom"];
+
 // Helper function to get block properties
 function getBlockProperties(blockType) {
     if (!blockType) return null;
     // Convert block type number to name
     const blockName = Object.keys(BLOCK_TYPES).find(key => BLOCK_TYPES[key] === blockType);
-    return blockColors[blockName] || { transparency: 1 };
+    
+    if (!blockColors) {
+        return { transparency: 1, color: { r: 1, g: 1, b: 1 } }; // Default if blockColors not available
+    }
+    
+    return blockColors[blockName] || { 
+        transparency: 1,
+        color: { r: 1, g: 1, b: 1 }
+    };
+}
+
+// Helper function to get block name from type
+function getBlockName(blockType) {
+    return Object.keys(BLOCK_TYPES).find(key => BLOCK_TYPES[key] === blockType) || "unknown";
 }
 
 // Helper function to check if a face should be culled
@@ -38,6 +88,193 @@ function shouldCullFace(blockType, neighborType, neighborChunkLoaded) {
     
     // Otherwise, cull if there's a neighbor block
     return true;
+}
+
+// Build Chunk Geometry function - moved from index.html to worker
+function buildChunkGeometry(chunkData, cx, cz) {
+    // Create separate arrays for each textured block type
+    const texturedGeometries = {};
+    const oVertices = [], oIndices = [], oUVs = [], oColors = [];
+    let oVertexCount = 0;
+    const tVertices = [], tIndices = [], tUVs = [], tColors = [];
+    let tVertexCount = 0;
+
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let y = 0; y < WORLD_HEIGHT; y++) {
+            for (let z = 0; z < CHUNK_SIZE; z++) {
+                let blockType = chunkData[x][y][z];
+                if (blockType === 0) continue;
+                
+                const blockName = getBlockName(blockType);
+                const colObj = blockColors[blockName] || { color: { r: 1, g: 1, b: 1 }, transparency: 1 };
+
+                for (let f = 0; f < faces.length; f++) {
+                    const face = faces[f];
+                    const faceName = faceNames[f];
+                    const nx = x + face.dir[0];
+                    const ny = y + face.dir[1];
+                    const nz = z + face.dir[2];
+                    
+                    // Get the actual global coordinates for proper neighbor checking
+                    const globalX = cx * CHUNK_SIZE + x;
+                    const globalZ = cz * CHUNK_SIZE + z;
+                    
+                    // Check neighbor block using global coordinates
+                    let neighbor = 0; // Default to air if out of bounds
+                    let isNeighborChunkLoaded = true;
+                    
+                    if (ny < 0 || ny >= WORLD_HEIGHT) {
+                        // Y out of bounds - treat as air
+                        neighbor = 0;
+                    } else if (nx < 0 || nx >= CHUNK_SIZE || nz < 0 || nz >= CHUNK_SIZE) {
+                        // At chunk boundary - use global coordinates
+                        const neighborGlobalX = globalX + face.dir[0];
+                        const neighborGlobalZ = globalZ + face.dir[2];
+                        const neighborCx = Math.floor(neighborGlobalX / CHUNK_SIZE);
+                        const neighborCz = Math.floor(neighborGlobalZ / CHUNK_SIZE);
+                        
+                        // Check if neighbor chunk exists
+                        const neighborKey = `${neighborCx},${neighborCz}`;
+                        if (chunkStorage.has(neighborKey)) {
+                            const neighborChunk = chunkStorage.get(neighborKey);
+                            const neighborLocalX = ((neighborGlobalX % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+                            const neighborLocalZ = ((neighborGlobalZ % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+                            neighbor = neighborChunk[neighborLocalX][ny][neighborLocalZ];
+                        } else {
+                            isNeighborChunkLoaded = false;
+                        }
+                    } else {
+                        // Within same chunk and within bounds
+                        neighbor = chunkData[nx][ny][nz];
+                    }
+
+                    // Check if this face should be culled
+                    if (shouldCullFace(blockType, neighbor, isNeighborChunkLoaded)) {
+                        continue;
+                    }
+
+                    // Get the texture for this face
+                    let faceTexture = null;
+                    if (colObj.faces && colObj.faces[faceName] && colObj.faces[faceName].texture) {
+                        faceTexture = colObj.faces[faceName].texture;
+                    } else if (colObj.texture) {
+                        faceTexture = colObj.texture;
+                    }
+
+                    // For textured blocks, we'll add them based on block name and face
+                    // Instead of relying on texture objects that don't transfer to the main thread
+                    {
+                        // Create geometry arrays for this block+face if they don't exist
+                        const textureKey = blockName + (colObj.faces && colObj.faces[faceName] ? '_' + faceName : '');
+                        if (!texturedGeometries[textureKey]) {
+                            texturedGeometries[textureKey] = {
+                                vertices: [],
+                                indices: [],
+                                uvs: [],
+                                vertexCount: 0,
+                                blockName: blockName,
+                                faceName: colObj.faces && colObj.faces[faceName] ? faceName : null,
+                                // Add color information for fallback when texture is unavailable
+                                color: colObj.color || { r: 1, g: 1, b: 1 }
+                            };
+                        }
+
+                        const geo = texturedGeometries[textureKey];
+                        for (let i = 0; i < 4; i++) {
+                            const v = face.vertices[i];
+                            geo.vertices.push(
+                                cx * CHUNK_SIZE + x + v[0],
+                                y + v[1],
+                                cz * CHUNK_SIZE + z + v[2]
+                            );
+                        }
+                        // Modify UV coordinates based on face
+                        if (faceName === "left" || faceName === "right") {
+                            // Rotate -90 degrees
+                            geo.uvs.push(1, 0, 1, 1, 0, 1, 0, 0);
+                        } else {
+                            // Default UV mapping for other faces
+                            geo.uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+                        }
+                        geo.indices.push(
+                            geo.vertexCount, geo.vertexCount + 1, geo.vertexCount + 2,
+                            geo.vertexCount, geo.vertexCount + 2, geo.vertexCount + 3
+                        );
+                        geo.vertexCount += 4;
+                        continue;
+                    }
+
+                    // Handle non-textured faces
+                    const baseColor = colObj.color || { r: 1, g: 1, b: 1 };
+                    if (colObj.transparency === 1) {
+                        for (let i = 0; i < 4; i++) {
+                            const vertex = face.vertices[i];
+                            oVertices.push(
+                                cx * CHUNK_SIZE + x + vertex[0],
+                                y + vertex[1],
+                                cz * CHUNK_SIZE + z + vertex[2]
+                            );
+                            oColors.push(baseColor.r, baseColor.g, baseColor.b);
+                        }
+                        oUVs.push(0, 0, 1, 0, 1, 1, 0, 1);
+                        oIndices.push(
+                            oVertexCount, oVertexCount + 1, oVertexCount + 2,
+                            oVertexCount, oVertexCount + 2, oVertexCount + 3
+                        );
+                        oVertexCount += 4;
+                    } else {
+                        for (let i = 0; i < 4; i++) {
+                            const vertex = face.vertices[i];
+                            tVertices.push(
+                                cx * CHUNK_SIZE + x + vertex[0],
+                                y + vertex[1],
+                                cz * CHUNK_SIZE + z + vertex[2]
+                            );
+                            tColors.push(baseColor.r, baseColor.g, baseColor.b);
+                        }
+                        tUVs.push(0, 0, 1, 0, 1, 1, 0, 1);
+                        tIndices.push(
+                            tVertexCount, tVertexCount + 1, tVertexCount + 2,
+                            tVertexCount, tVertexCount + 2, tVertexCount + 3
+                        );
+                        tVertexCount += 4;
+                    }
+                }
+            }
+        }
+    }
+
+    // Create array typed buffers for efficient transfer
+    const geometryData = {
+        opaque: {
+            vertices: new Float32Array(oVertices),
+            indices: new Uint32Array(oIndices),
+            uvs: new Float32Array(oUVs),
+            colors: new Float32Array(oColors)
+        },
+        transparent: {
+            vertices: new Float32Array(tVertices),
+            indices: new Uint32Array(tIndices),
+            uvs: new Float32Array(tUVs),
+            colors: new Float32Array(tColors)
+        },
+        textured: []
+    };
+
+    // Convert textured geometries to typed arrays
+    for (const [key, geo] of Object.entries(texturedGeometries)) {
+        geometryData.textured.push({
+            key: key,
+            vertices: new Float32Array(geo.vertices),
+            indices: new Uint32Array(geo.indices),
+            uvs: new Float32Array(geo.uvs),
+            blockName: geo.blockName,
+            faceName: geo.faceName,
+            color: geo.color || { r: 1, g: 1, b: 1 } // Include color for fallback rendering
+        });
+    }
+
+    return geometryData;
 }
 
 // Helper function to get block from chunk data, handling chunk boundaries
@@ -356,7 +593,7 @@ function generateChunkData(cx, cz) {
 
 // Message handler
 self.onmessage = function(e) {
-    const { cx, cz, constants, type, modifiedChunk } = e.data;
+    const { cx, cz, constants, type, modifiedChunk, requestGeometry } = e.data;
     
     if (type === "updateChunk") {
         // Store modified chunk data
@@ -383,12 +620,23 @@ self.onmessage = function(e) {
             const [updateCx, updateCz] = chunkKey.split(',').map(Number);
             const chunkToUpdate = chunkStorage.get(chunkKey);
             if (chunkToUpdate) {
+                // Build geometry data and send it back
+                const geometryData = buildChunkGeometry(chunkToUpdate, updateCx, updateCz);
                 self.postMessage({
                     type: "chunkUpdated",
                     cx: updateCx,
                     cz: updateCz,
-                    chunkData: chunkToUpdate
-                });
+                    geometryData: geometryData
+                }, [
+                    geometryData.opaque.vertices.buffer,
+                    geometryData.opaque.indices.buffer,
+                    geometryData.opaque.uvs.buffer,
+                    geometryData.opaque.colors.buffer,
+                    geometryData.transparent.vertices.buffer,
+                    geometryData.transparent.indices.buffer,
+                    geometryData.transparent.uvs.buffer,
+                    geometryData.transparent.colors.buffer
+                ]);
             }
         }
         return;
@@ -405,8 +653,10 @@ self.onmessage = function(e) {
         
         // Convert string functions back to actual functions
         StructureGenerators = {};
-        for (const [key, fnString] of Object.entries(constants.StructureGenerators)) {
-            StructureGenerators[key] = new Function('return ' + fnString)();
+        if (constants.StructureGenerators) {
+            for (const [key, fnString] of Object.entries(constants.StructureGenerators)) {
+                StructureGenerators[key] = new Function('return ' + fnString)();
+            }
         }
     }
 
@@ -419,32 +669,78 @@ self.onmessage = function(e) {
         chunkData = generateChunkData(cx, cz);
         chunkStorage.set(key, chunkData);
         
-        // Get all neighboring chunks that need updating
+        // Build geometry data in the worker
+        const geometryData = buildChunkGeometry(chunkData, cx, cz);
+        
+        // Get all neighboring chunks that need updating - only send if needed
         const neighbors = [
             [cx - 1, cz], [cx + 1, cz],
-            [cx, cz - 1], [cx, cz + 1],
-            [cx - 1, cz - 1], [cx + 1, cz - 1],
-            [cx - 1, cz + 1], [cx + 1, cz + 1]
+            [cx, cz - 1], [cx, cz + 1]
         ];
         
-        // First send the new chunk
-        self.postMessage({ cx, cz, chunkData });
+        // Transfer the typed arrays to avoid copying the data
+        self.postMessage({ 
+            cx, 
+            cz, 
+            geometryData
+        }, [
+            geometryData.opaque.vertices.buffer,
+            geometryData.opaque.indices.buffer,
+            geometryData.opaque.uvs.buffer,
+            geometryData.opaque.colors.buffer,
+            geometryData.transparent.vertices.buffer,
+            geometryData.transparent.indices.buffer,
+            geometryData.transparent.uvs.buffer,
+            geometryData.transparent.colors.buffer
+        ]);
         
-        // Then update all existing neighbors
+        // Then update all existing neighbors that might need re-rendering
         for (const [ncx, ncz] of neighbors) {
             const nKey = `${ncx},${ncz}`;
             if (chunkStorage.has(nKey)) {
+                const neighborData = chunkStorage.get(nKey);
+                const neighborGeom = buildChunkGeometry(neighborData, ncx, ncz);
+                
                 self.postMessage({
                     type: "chunkUpdated",
                     cx: ncx,
                     cz: ncz,
-                    chunkData: chunkStorage.get(nKey)
-                });
+                    geometryData: neighborGeom
+                }, [
+                    neighborGeom.opaque.vertices.buffer,
+                    neighborGeom.opaque.indices.buffer,
+                    neighborGeom.opaque.uvs.buffer,
+                    neighborGeom.opaque.colors.buffer,
+                    neighborGeom.transparent.vertices.buffer,
+                    neighborGeom.transparent.indices.buffer,
+                    neighborGeom.transparent.uvs.buffer,
+                    neighborGeom.transparent.colors.buffer
+                ]);
             }
         }
         return;
     }
     
-    // Send back the chunk
-    self.postMessage({ cx, cz, chunkData });
+    // If geometry was requested, build and return it
+    if (requestGeometry) {
+        const geometryData = buildChunkGeometry(chunkData, cx, cz);
+        
+        self.postMessage({ 
+            cx, 
+            cz, 
+            geometryData 
+        }, [
+            geometryData.opaque.vertices.buffer,
+            geometryData.opaque.indices.buffer,
+            geometryData.opaque.uvs.buffer,
+            geometryData.opaque.colors.buffer,
+            geometryData.transparent.vertices.buffer,
+            geometryData.transparent.indices.buffer,
+            geometryData.transparent.uvs.buffer,
+            geometryData.transparent.colors.buffer
+        ]);
+    } else {
+        // Just send the chunk data, legacy behavior
+        self.postMessage({ cx, cz, chunkData });
+    }
 };

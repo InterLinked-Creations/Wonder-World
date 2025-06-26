@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quidd Editor</title>
+  <style>
+    body { background: #f0f0f0; display: flex; justify-content: center; margin-top: 50px; }
+    .quidd {
+      position: relative;
+      width: 200px;
+      height: 500px;
+    }
+    .part {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.8;
+      border: 1px dashed #aaa;
+    }
+    .hat       { top: 0; height: 60px; background: #ffd700; }
+    .back-hat  { top: 0; height: 60px; background: #ffa500; z-index: -1; }
+    .face      { top: 60px; height: 80px; background: #ffe4c4; }
+    .brows     { top: 65px; height: 10px; background: #8b4513; }
+    .eyes      { top: 75px; height: 20px; background: #add8e6; }
+    .mouth     { top: 100px; height: 10px; background: #ff69b4; }
+    .top       { top: 140px; height: 80px; background: #7fffd4; }
+    .glove-left, .glove-right {
+      top: 150px; height: 30px; width: 30px; background: #d2691e;
+      position: absolute;
+    }
+    .glove-left  { left: -30px; transform: scaleX(-1); }
+    .glove-right { right: -30px; }
+    .belt      { top: 220px; height: 20px; background: #8b0000; }
+    .leggings  { top: 240px; height: 100px; background: #87ceeb; }
+    .shoe-left, .shoe-right {
+      top: 340px; height: 30px; width: 40px; background: #808080;
+      position: absolute;
+    }
+    .shoe-left  { left: 10px; transform: scaleX(-1); }
+    .shoe-right { right: 10px; }
+  </style>
+</head>
+<body>
+  <div class="quidd">
+    <div class="back-hat part">Back Hat</div>
+    <div class="hat part">Hat</div>
+    <div class="face part">
+      <div class="brows part">Brows</div>
+      <div class="eyes part">Eyes</div>
+      <div class="mouth part">Mouth</div>
+    </div>
+    <div class="top part">Top</div>
+    <div class="glove-left part">Glove L</div>
+    <div class="glove-right part">Glove R</div>
+    <div class="belt part">Belt</div>
+    <div class="leggings part">Leggings</div>
+    <div class="shoe-left part">Shoe L</div>
+    <div class="shoe-right part">Shoe R</div>
+  </div>
+</body>
+</html>

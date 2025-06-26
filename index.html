@@ -634,7 +634,7 @@
     const playerHeight = 1.8;       
     const playerRadius = 0.3;       
     const jumpImpulse = 13; 
-    const worldSeed = 10;        
+    const worldSeed = 1;        
 
     // Global variables for rendering, scene, and input.
     let scene, renderer;
@@ -1102,219 +1102,7 @@
     // Add mapping from face index to face name for styling
     const faceNames = ["left", "right", "bottom", "top", "back", "front"];
 
-    // Build Chunk Geometry with Vertex Colors
-    function buildChunkGeometry(chunkData, cx, cz) {
-        // Create separate arrays for each textured block type
-        const texturedGeometries = {};
-        const oVertices = [], oIndices = [], oUVs = [], oColors = [];
-        let oVertexCount = 0;
-        const tVertices = [], tIndices = [], tUVs = [], tColors = [];
-        let tVertexCount = 0;
-
-        // Helper function to check if a face should be culled
-        function shouldCullFace(blockType, neighborType, isNeighborChunkLoaded) {
-            // If the neighbor chunk isn't loaded, always cull that face
-            if (!isNeighborChunkLoaded) return true;
-            
-            // If there's no neighbor block, don't cull
-            if (!neighborType) return false;
-            
-            const blockName = getBlockName(blockType);
-            const neighborName = getBlockName(neighborType);
-            const blockProps = blockColors[blockName] || { transparency: 1 };
-            const neighborProps = blockColors[neighborName] || { transparency: 1 };
-            
-            // If the neighbor is the same block type, always cull
-            if (blockType === neighborType) return true;
-            
-            // If the neighbor is transparent or see-through, don't cull unless it's the same block type
-            if (neighborProps.transparency < 1 || neighborProps.seeThrough) return false;
-            
-            // Otherwise, cull if there's a neighbor block
-            return true;
-        }
-
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-            for (let y = 0; y < WORLD_HEIGHT; y++) {
-                for (let z = 0; z < CHUNK_SIZE; z++) {
-                    let blockType = chunkData[x][y][z];
-                    if (blockType === 0) continue;
-                    
-                    const blockName = getBlockName(blockType);
-                    const colObj = blockColors[blockName] || { color: new THREE.Color(0xffffff), transparency: 1 };
-
-                    for (let f = 0; f < faces.length; f++) {
-                        const face = faces[f];
-                        const faceName = faceNames[f];
-                        const nx = x + face.dir[0];
-                        const ny = y + face.dir[1];
-                        const nz = z + face.dir[2];
-                        
-                        // Get the actual global coordinates for proper neighbor checking
-                        const globalX = cx * CHUNK_SIZE + x;
-                        const globalZ = cz * CHUNK_SIZE + z;
-                        
-                        // Check neighbor block using global coordinates
-                        let neighbor = 0; // Default to air if out of bounds
-                        let isNeighborChunkLoaded = true;
-                        
-                        if (ny < 0 || ny >= WORLD_HEIGHT) {
-                            // Y out of bounds - treat as air
-                            neighbor = 0;
-                        } else if (nx < 0 || nx >= CHUNK_SIZE || nz < 0 || nz >= CHUNK_SIZE) {
-                            // At chunk boundary - use global coordinates
-                            const neighborGlobalX = globalX + face.dir[0];
-                            const neighborGlobalZ = globalZ + face.dir[2];
-                            const neighborCx = Math.floor(neighborGlobalX / CHUNK_SIZE);
-                            const neighborCz = Math.floor(neighborGlobalZ / CHUNK_SIZE);
-                            
-                            // Check if neighbor chunk exists
-                            const neighborKey = `${neighborCx},${neighborCz}`;
-                            if (chunkDataStore[neighborKey]) {
-                                const neighborLocalX = ((neighborGlobalX % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
-                                const neighborLocalZ = ((neighborGlobalZ % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
-                                neighbor = chunkDataStore[neighborKey][neighborLocalX][ny][neighborLocalZ];
-                            } else {
-                                isNeighborChunkLoaded = false;
-                            }
-                        } else {
-                            // Within same chunk and within bounds
-                            neighbor = chunkData[nx][ny][nz];
-                        }
-
-                        // Check if this face should be culled
-                        if (shouldCullFace(blockType, neighbor, isNeighborChunkLoaded)) {
-                            continue;
-                        }
-
-                        // Get the texture for this face
-                        let faceTexture = null;
-                        if (colObj.faces && colObj.faces[faceName] && colObj.faces[faceName].texture) {
-                            faceTexture = colObj.faces[faceName].texture;
-                        } else if (colObj.texture) {
-                            faceTexture = colObj.texture;
-                        }
-
-                        // If we have a texture, add to the appropriate textured geometry
-                        if (faceTexture) {
-                            // Create geometry arrays for this texture if they don't exist
-                            const textureKey = blockName + (colObj.faces && colObj.faces[faceName] ? '_' + faceName : '');
-                            if (!texturedGeometries[textureKey]) {
-                                texturedGeometries[textureKey] = {
-                                    vertices: [],
-                                    indices: [],
-                                    uvs: [],
-                                    vertexCount: 0,
-                                    texture: faceTexture
-                                };
-                            }
-
-                            const geo = texturedGeometries[textureKey];
-                            for (let i = 0; i < 4; i++) {
-                                const v = face.vertices[i];
-                                geo.vertices.push(
-                                    cx * CHUNK_SIZE + x + v[0],
-                                    y + v[1],
-                                    cz * CHUNK_SIZE + z + v[2]
-                                );
-                            }
-                            // Modify UV coordinates based on face
-                            if (faceName === "left" || faceName === "right") {
-                                // Rotate -90 degrees
-                                geo.uvs.push(1, 0, 1, 1, 0, 1, 0, 0);
-                            } else {
-                                // Default UV mapping for other faces
-                                geo.uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
-                            }
-                            geo.indices.push(
-                                geo.vertexCount, geo.vertexCount + 1, geo.vertexCount + 2,
-                                geo.vertexCount, geo.vertexCount + 2, geo.vertexCount + 3
-                            );
-                            geo.vertexCount += 4;
-                            continue;
-                        }
-
-                        // Handle non-textured faces
-                        const baseColor = colObj.color instanceof THREE.Color ? colObj.color : new THREE.Color(0xffffff);
-                        if (colObj.transparency === 1) {
-                            for (let i = 0; i < 4; i++) {
-                                const vertex = face.vertices[i];
-                                oVertices.push(
-                                    cx * CHUNK_SIZE + x + vertex[0],
-                                    y + vertex[1],
-                                    cz * CHUNK_SIZE + z + vertex[2]
-                                );
-                                oColors.push(baseColor.r, baseColor.g, baseColor.b);
-                            }
-                            oUVs.push(0, 0, 1, 0, 1, 1, 0, 1);
-                            oIndices.push(
-                                oVertexCount, oVertexCount + 1, oVertexCount + 2,
-                                oVertexCount, oVertexCount + 2, oVertexCount + 3
-                            );
-                            oVertexCount += 4;
-                        } else {
-                            for (let i = 0; i < 4; i++) {
-                                const vertex = face.vertices[i];
-                                tVertices.push(
-                                    cx * CHUNK_SIZE + x + vertex[0],
-                                    y + vertex[1],
-                                    cz * CHUNK_SIZE + z + vertex[2]
-                                );
-                                tColors.push(baseColor.r, baseColor.g, baseColor.b);
-                            }
-                            tUVs.push(0, 0, 1, 0, 1, 1, 0, 1);
-                            tIndices.push(
-                                tVertexCount, tVertexCount + 1, tVertexCount + 2,
-                                tVertexCount, tVertexCount + 2, tVertexCount + 3
-                            );
-                            tVertexCount += 4;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Create geometries
-        let opaqueGeometry = null, transparentGeometry = null;
-        const texturedMeshes = [];
-
-        // Create opaque geometry
-        if (oVertices.length) {
-            opaqueGeometry = new THREE.BufferGeometry();
-            opaqueGeometry.setAttribute("position", new THREE.Float32BufferAttribute(oVertices, 3));
-            opaqueGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(oUVs, 2));
-            opaqueGeometry.setAttribute("color", new THREE.Float32BufferAttribute(oColors, 3));
-            opaqueGeometry.setIndex(oIndices);
-            opaqueGeometry.computeVertexNormals();
-        }
-
-        // Create transparent geometry
-        if (tVertices.length) {
-            transparentGeometry = new THREE.BufferGeometry();
-            transparentGeometry.setAttribute("position", new THREE.Float32BufferAttribute(tVertices, 3));
-            transparentGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(tUVs, 2));
-            transparentGeometry.setAttribute("color", new THREE.Float32BufferAttribute(tColors, 3));
-            transparentGeometry.setIndex(tIndices);
-            transparentGeometry.computeVertexNormals();
-        }
-
-        // Create textured geometries
-        for (const [key, geo] of Object.entries(texturedGeometries)) {
-            if (geo.vertices.length) {
-                const geometry = new THREE.BufferGeometry();
-                geometry.setAttribute("position", new THREE.Float32BufferAttribute(geo.vertices, 3));
-                geometry.setAttribute("uv", new THREE.Float32BufferAttribute(geo.uvs, 2));
-                geometry.setIndex(geo.indices);
-                geometry.computeVertexNormals();
-                texturedMeshes.push({
-                    geometry: geometry,
-                    texture: geo.texture
-                });
-            }
-        }
-
-        return { opaque: opaqueGeometry, transparent: transparentGeometry, textured: texturedMeshes };
-    }
+    // Chunk geometry is now built in the worker
 
     // Chunk Management
     function loadChunk(cx, cz) {
@@ -1341,7 +1129,26 @@
             return;
         }
         
-        const geoms = buildChunkGeometry(chunkData, cx, cz);
+        // Request geometry data from the worker
+        pendingChunks.set(key, true);
+        chunkWorker.postMessage({
+            cx, 
+            cz,
+            requestGeometry: true,
+            constants: {
+                CHUNK_SIZE,
+                WORLD_HEIGHT,
+                BLOCK_TYPES,
+                BIOMES,
+                worldSeed,
+                blockColors: getSerializableBlockProperties(blockColors),
+                StructureGenerators: {
+                    tree: StructureGenerators.tree.toString(),
+                    house: StructureGenerators.house.toString()
+                }
+            }
+        });
+        // The worker will compute and return the geometry
         const group = new THREE.Group();
         
         // Add opaque meshes first
@@ -1416,7 +1223,26 @@
                 if (obj.material) obj.material.dispose();
             });
         }
-        const geoms = buildChunkGeometry(chunkDataStore[key], cx, cz);
+        
+        // Request geometry data from the worker
+        pendingChunks.set(key, true);
+        chunkWorker.postMessage({
+            cx, 
+            cz,
+            requestGeometry: true,
+            constants: {
+                CHUNK_SIZE,
+                WORLD_HEIGHT,
+                BLOCK_TYPES,
+                BIOMES,
+                worldSeed,
+                blockColors: getSerializableBlockProperties(blockColors),
+                StructureGenerators: {
+                    tree: StructureGenerators.tree.toString(),
+                    house: StructureGenerators.house.toString()
+                }
+            }
+        });
         const group = new THREE.Group();
 
         // Add opaque meshes first
@@ -1470,7 +1296,7 @@
     }
 
     // Add chunk loading queue system
-    const MAX_CHUNKS_PER_FRAME = 4; // Increased from 2 since we're using a worker now
+    const MAX_CHUNKS_PER_FRAME = 5; // Increased from 2 since we're using a worker now
     const chunkWorker = new Worker('chunkWorker.js');
     const pendingChunks = new Map(); // Track chunks being processed by worker
 
@@ -1508,18 +1334,33 @@
         // Track chunk updates
         chunkUpdatesThisSecond++;
         
-        // Fallback: if no geometryData but got chunkData, use legacy buildChunkGeometry
+        // If we receive chunk data with no geometry, store it and request geometry
         if (!geometryData && chunkData) {
-            // Store and render via existing methods
+            // Store chunk data
             chunkData.chunkX = cx;
             chunkData.chunkZ = cz;
             chunkDataStore[key] = chunkData;
-            pendingChunks.delete(key);
-            if (loadedChunks[key]) {
-                updateChunk(cx, cz);
-            } else {
-                loadChunk(cx, cz);
-            }
+            
+            // Request geometry in a separate message
+            pendingChunks.set(key, true);
+            chunkWorker.postMessage({
+                cx, 
+                cz,
+                requestGeometry: true,
+                constants: {
+                    CHUNK_SIZE,
+                    WORLD_HEIGHT,
+                    BLOCK_TYPES,
+                    BIOMES,
+                    worldSeed,
+                    blockColors: getSerializableBlockProperties(blockColors),
+                    StructureGenerators: {
+                        tree: StructureGenerators.tree.toString(),
+                        house: StructureGenerators.house.toString()
+                    }
+                }
+            });
+            
             if (isLoading) chunkLoaded();
             return;
         }
@@ -1560,20 +1401,45 @@
                 geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
                 geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
                 geom.computeVertexNormals();
-                // Determine texture by key
-                const [blockName, face] = entry.key.split('_');
-                const texture = face && blockColors[blockName].faces && blockColors[blockName].faces[face]
-                    ? blockColors[blockName].faces[face].texture
-                    : blockColors[blockName].texture;
-                const props = blockColors[blockName];
-                const mat = new THREE.MeshLambertMaterial({
-                    map: texture,
+                
+                // Get block and face info from the entry
+                const blockName = entry.blockName || (entry.key ? entry.key.split('_')[0] : 'unknown');
+                const faceName = entry.faceName || (entry.key && entry.key.includes('_') ? entry.key.split('_')[1] : null);
+                
+                // Get the texture based on block name and face
+                let texture;
+                if (blockName && faceName && blockColors[blockName]?.faces?.[faceName]?.texture) {
+                    texture = blockColors[blockName].faces[faceName].texture;
+                } else if (blockName && blockColors[blockName]?.texture) {
+                    texture = blockColors[blockName].texture;
+                } else if (blockName) {
+                    // Debug - if we have the block name but no texture, show what's missing
+                    console.log("Missing texture for block:", blockName, faceName ? `face: ${faceName}` : '');
+                }
+                
+                const props = blockColors[blockName] || {};
+                
+                // Create material properties
+                const matProps = {
                     transparent: props.transparency < 1,
                     side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
-                    opacity: props.transparency,
+                    opacity: props.transparency || 1,
                     alphaTest: props.alphaTest || 0.1,
                     depthWrite: props.transparency === 1
-                });
+                };
+                
+                // Only add texture if it exists, otherwise use vertex colors
+                if (texture) {
+                    matProps.map = texture;
+                } else {
+                    // If no texture found, use a colored material based on block color
+                    // First check if the worker sent a color, otherwise fall back to blockColors
+                    const blockColor = entry.color || props.color || { r: 1, g: 1, b: 1 };
+                    matProps.color = new THREE.Color(blockColor.r, blockColor.g, blockColor.b);
+                    matProps.vertexColors = false;
+                }
+                
+                const mat = new THREE.MeshLambertMaterial(matProps);
                 const mesh = new THREE.Mesh(geom, mat);
                 mesh.renderOrder = props.transparency < 1 ? 2 : 0;
                 group.add(mesh);
@@ -1640,9 +1506,11 @@
             pendingChunks.set(key, true);
             
             // Send chunk generation request to worker with block properties
+            // Always request geometry to be computed in the worker
             chunkWorker.postMessage({
                 cx, 
                 cz,
+                requestGeometry: true,  // Always generate geometry in worker
                 constants: {
                     CHUNK_SIZE,
                     WORLD_HEIGHT,
