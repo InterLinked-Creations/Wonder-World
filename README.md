@@ -10,6 +10,7 @@ If you like the game, even in it's Alpha Stage, please give it a star, and watch
 
 # Recent Updates
 6/5/2025: I have made major progress as of right now. The game is running smoother than the Mountain Ranges update, and more and more features are being added! Still has many crazy bugs, but that's never going to stop me! :D
+6/26/2025: Most of the major bugs have been crushed, and it was an absolute hastle fixing them without causing more issue. The game is playable, but it can get boring within 3 minutes, so I've still got more features to add.
 
 # Credits
 <b>Developers:</b> Alex Fischer
