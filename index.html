@@ -185,7 +185,7 @@
 
 
     <!-- Load Three.js from a CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="./js/utils/three.min.js"></script>
 
     <!-- ImprovedNoise with Random Permutation -->
     <script>
@@ -197,11 +197,9 @@
         "You can now double-tap the 'W' key to run faster.",
         "What kind of builds will you create, today?",
         "In Wonder World Version Alpha.8.3.6, you can only place dirt.",
-        "Did you know, most of Wonder World's code was written by AI? Don't worry, though, I (the developer) still carefully review and edit the code.",
-        "<span style='font-size: 7px;'>If you can read this, you're sitting too close to the screen!</span>",  
-        "We tried using quantum computing… but the qubits got lost in another dimension.",  
+        "Did you know, most of Wonder World's code was written by AI?",
+        "<span style='font-size: 7px;'>If you can read this, you're probably sitting too close to the screen!</span>",  
         "Pressing buttons does things. Some of them useful, some of them… interesting.",  
-        "Running on pure imagination… and probably some spaghetti code.",  
         "Wonder World is made with magic, hope, and at least two gallons of coffee.",  
         "Tried to make the water wet. Turns out, it was already wet.",  
         "Every update adds something. What that something is… remains classified.",  
@@ -210,6 +208,335 @@
         "Remember: If something is acting weird, it's not a bug. It's a feature.",  
         "Breaking news: Wonder World still doesn't have ray tracing. But hey, the sun works!",
     ]
+
+    // A watcher object to watch for certain things.
+    // As of right now, it only watches for game packs.
+
+    /*
+       The **Default** pack must always be somewhere in this array. If it isn't, it will be added.
+       All pack data must be stored in the 'gamePacks' directory except for the **Default** pack.
+       If there were a pack named "NewPack", it's name would be added to this array,
+       and the data would be stored in the 'gamePacks/NewPack' directory.
+       The **Default** pack's data is in the data folder.
+    */
+    const WATCHER = {
+        gamePacks: ["**Default**"]
+    };
+    
+    // Game Pack Data Collection System
+    const GamePackLoader = {
+        loadedPacks: new Map(),
+        
+        // Initialize and load all game packs
+        async initialize() {
+            console.log("Initializing GamePack system...");
+            
+            // Ensure **Default** pack is in the array
+            if (!WATCHER.gamePacks.includes("**Default**")) {
+                WATCHER.gamePacks.unshift("**Default**");
+            }
+            
+            // Load all game packs
+            for (const packName of WATCHER.gamePacks) {
+                try {
+                    await this.loadGamePack(packName);
+                } catch (error) {
+                    console.error(`Failed to load game pack "${packName}":`, error);
+                }
+            }
+            
+            console.log(`Loaded ${this.loadedPacks.size} game packs:`, Array.from(this.loadedPacks.keys()));
+        },
+        
+        // Load a specific game pack
+        async loadGamePack(packName) {
+            console.log(`Loading game pack: ${packName}`);
+            
+            const packData = {
+                name: packName,
+                isDefault: packName === "**Default**",
+                basePath: packName === "**Default**" ? "data/" : `gamePacks/${packName}/`,
+                blocks: {},
+                biomes: {},
+                textures: {},
+                structures: {},
+                config: {}
+            };
+            
+            // Load pack configuration
+            try {
+                packData.config = await this.loadPackConfig(packData.basePath);
+            } catch (error) {
+                console.warn(`No config found for pack "${packName}"`);
+                packData.config = {};
+            }
+            
+            // Load blocks data
+            try {
+                packData.blocks = await this.loadPackBlocks(packData.basePath);
+            } catch (error) {
+                console.warn(`No blocks data found for pack "${packName}"`);
+            }
+            
+            // Load biomes data
+            try {
+                packData.biomes = await this.loadPackBiomes(packData.basePath);
+            } catch (error) {
+                console.warn(`No biomes data found for pack "${packName}"`);
+            }
+            
+            // Load textures data
+            try {
+                packData.textures = await this.loadPackTextures(packData.basePath);
+            } catch (error) {
+                console.warn(`No textures data found for pack "${packName}"`);
+            }
+            
+            // Load structures data
+            try {
+                packData.structures = await this.loadPackStructures(packData.basePath);
+            } catch (error) {
+                console.warn(`No structures data found for pack "${packName}"`);
+            }
+            
+            this.loadedPacks.set(packName, packData);
+            return packData;
+        },
+        
+        // Load pack configuration
+        async loadPackConfig(basePath) {
+            const response = await fetch(`${basePath}config.json`);
+            if (!response.ok) throw new Error(`Config not found at ${basePath}config.json`);
+            return await response.json();
+        },
+        
+        // Load blocks data
+        async loadPackBlocks(basePath) {
+            const response = await fetch(`${basePath}blocks.json`);
+            if (!response.ok) throw new Error(`Blocks not found at ${basePath}blocks.json`);
+            return await response.json();
+        },
+        
+        // Load biomes data
+        async loadPackBiomes(basePath) {
+            const response = await fetch(`${basePath}biomes.json`);
+            if (!response.ok) throw new Error(`Biomes not found at ${basePath}biomes.json`);
+            return await response.json();
+        },
+        
+        // Load textures data
+        async loadPackTextures(basePath) {
+            const response = await fetch(`${basePath}textures.json`);
+            if (!response.ok) throw new Error(`Textures not found at ${basePath}textures.json`);
+            return await response.json();
+        },
+        
+        // Load structures data
+        async loadPackStructures(basePath) {
+            const response = await fetch(`${basePath}structures.json`);
+            if (!response.ok) throw new Error(`Structures not found at ${basePath}structures.json`);
+            return await response.json();
+        },
+        
+        // Get data from a specific pack
+        getPackData(packName) {
+            return this.loadedPacks.get(packName);
+        },
+        
+        // Get merged data from all packs (with priority order)
+        getMergedData(dataType) {
+            const merged = {};
+            
+            // Apply packs in order (later packs override earlier ones)
+            for (const packName of WATCHER.gamePacks) {
+                const packData = this.loadedPacks.get(packName);
+                if (packData && packData[dataType]) {
+                    Object.assign(merged, packData[dataType]);
+                }
+            }
+            
+            return merged;
+        },
+        
+        // Get all available pack names
+        getPackNames() {
+            return Array.from(this.loadedPacks.keys());
+        },
+        
+        // Check if a pack is loaded
+        isPackLoaded(packName) {
+            return this.loadedPacks.has(packName);
+        },
+        
+        // Reload a specific pack
+        async reloadPack(packName) {
+            if (this.loadedPacks.has(packName)) {
+                this.loadedPacks.delete(packName);
+            }
+            return await this.loadGamePack(packName);
+        },
+        
+        // Get pack info for debugging
+        getPackInfo() {
+            const info = {};
+            for (const [packName, packData] of this.loadedPacks) {
+                info[packName] = {
+                    isDefault: packData.isDefault,
+                    basePath: packData.basePath,
+                    hasConfig: Object.keys(packData.config).length > 0,
+                    blockCount: Object.keys(packData.blocks).length,
+                    biomeCount: Object.keys(packData.biomes).length,
+                    textureCount: Object.keys(packData.textures).length,
+                    structureCount: Object.keys(packData.structures).length
+                };
+            }
+            return info;
+        }
+    };
+    
+    // Function to apply game pack data to existing game systems
+    function applyGamePackData() {
+        console.log("Applying game pack data to game systems...");
+        
+        // Merge and apply blocks data
+        const packedBlocks = GamePackLoader.getMergedData('blocks');
+        if (packedBlocks && packedBlocks.blocks && Object.keys(packedBlocks.blocks).length > 0) {
+            console.log(`Loaded ${Object.keys(packedBlocks.blocks).length} blocks from game packs`);
+            
+            // Populate BLOCK_TYPES with block IDs
+            Object.keys(packedBlocks.blocks).forEach(blockName => {
+                const blockData = packedBlocks.blocks[blockName];
+                if (blockData.id) {
+                    BLOCK_TYPES[blockName] = blockData.id;
+                }
+            });
+            
+            // Populate blockColors with block properties
+            Object.keys(packedBlocks.blocks).forEach(blockName => {
+                const blockData = packedBlocks.blocks[blockName];
+                if (blockData.properties) {
+                    blockColors[blockName] = blockData.properties;
+                    console.log(`Loaded block ${blockName}:`, blockColors[blockName]);
+                }
+            });
+        }
+        
+        // Merge and apply biomes data
+        const packedBiomes = GamePackLoader.getMergedData('biomes');
+        if (packedBiomes && packedBiomes.biomes && Object.keys(packedBiomes.biomes).length > 0) {
+            console.log(`Loaded ${Object.keys(packedBiomes.biomes).length} biomes from game packs`);
+            
+            // Populate BIOMES with biome data
+            Object.assign(BIOMES, packedBiomes.biomes);
+            
+            // Debug: Show all loaded biomes with their temperature/moisture
+            console.log("Loaded biomes:", Object.keys(BIOMES).map(name => ({
+                name,
+                temp: BIOMES[name].temperature,
+                moisture: BIOMES[name].moisture,
+                universal: BIOMES[name].isUniversalBiome
+            })));
+        }
+        
+        // Merge and apply structures data
+        const packedStructures = GamePackLoader.getMergedData('structures');
+        if (packedStructures && packedStructures.structures && Object.keys(packedStructures.structures).length > 0) {
+            console.log(`Loaded ${Object.keys(packedStructures.structures).length} structures from game packs`);
+            
+            // Note: StructureGenerators functions remain hardcoded as they contain complex logic
+            // Only structure metadata is loaded from GamePacks
+        }
+        
+        // Apply configuration data
+        const packedConfig = GamePackLoader.getMergedData('config');
+        if (packedConfig && packedConfig.config) {
+            const config = packedConfig.config;
+            
+            // Apply terrain configuration
+            if (config.terrain) {
+                if (config.terrain.geologicalFormations) {
+                    Object.assign(GEOLOGICAL_FORMATIONS, config.terrain.geologicalFormations);
+                }
+                
+                if (config.terrain.noiseConfig) {
+                    Object.assign(NOISE_CONFIG, config.terrain.noiseConfig);
+                }
+                
+                if (config.terrain.terrainBounds) {
+                    Object.assign(TERRAIN_BOUNDS, config.terrain.terrainBounds);
+                }
+            }
+            
+            // Apply world settings
+            if (config.world) {
+                if (config.world.defaultBiome) defaultBiome = config.world.defaultBiome;
+            }
+        }
+        
+        // Log summary
+        const packInfo = GamePackLoader.getPackInfo();
+        console.log("Game Pack Summary:", packInfo);
+        console.log("Game pack data applied successfully");
+        
+        // Load textures after all block data is ready
+        loadBlockTextures();
+    }
+    
+    // Utility functions for game pack management
+    const GamePackUtils = {
+        // Get all available blocks from all packs
+        getAllBlocks() {
+            return GamePackLoader.getMergedData('blocks');
+        },
+        
+        // Get all available biomes from all packs
+        getAllBiomes() {
+            return GamePackLoader.getMergedData('biomes');
+        },
+        
+        // Get all available structures from all packs
+        getAllStructures() {
+            return GamePackLoader.getMergedData('structures');
+        },
+        
+        // Check if a specific pack has certain data
+        packHasData(packName, dataType) {
+            const packData = GamePackLoader.getPackData(packName);
+            return packData && packData[dataType] && Object.keys(packData[dataType]).length > 0;
+        },
+        
+        // Get combined configuration from all packs
+        getCombinedConfig() {
+            const combined = {};
+            for (const packName of WATCHER.gamePacks) {
+                const packData = GamePackLoader.getPackData(packName);
+                if (packData && packData.config) {
+                    Object.assign(combined, packData.config);
+                }
+            }
+            return combined;
+        },
+        
+        // Debug function to list all loaded content
+        debugPackContents() {
+            console.log("=== GAME PACK DEBUG INFO ===");
+            for (const packName of WATCHER.gamePacks) {
+                const packData = GamePackLoader.getPackData(packName);
+                if (packData) {
+                    console.log(`\n--- ${packName} ---`);
+                    console.log(`Path: ${packData.basePath}`);
+                    console.log(`Blocks: ${Object.keys(packData.blocks).length}`);
+                    console.log(`Biomes: ${Object.keys(packData.biomes).length}`);
+                    console.log(`Structures: ${Object.keys(packData.structures).length}`);
+                    console.log(`Config keys: ${Object.keys(packData.config)}`);
+                }
+            }
+            console.log("\n=== MERGED DATA ===");
+            console.log(`Total Blocks: ${Object.keys(GamePackLoader.getMergedData('blocks')).length}`);
+            console.log(`Total Biomes: ${Object.keys(GamePackLoader.getMergedData('biomes')).length}`);
+            console.log(`Total Structures: ${Object.keys(GamePackLoader.getMergedData('structures')).length}`);
+        }
+    };
     
     // Add a seeded random generator function:
     function seededRandomGenerator(seed) {
@@ -299,6 +626,11 @@
     const WORLD_HEIGHT = 216;        // Vertical blocks per chunk
     const WORLD_CHUNK_COUNT = 100;   // World chunk grid
     const VISIBLE_RADIUS = 12;        // Load chunks within a certain radius
+
+    // Chunk Loading Queue
+    const MAX_CHUNKS_PER_FRAME = 5; // Maximum chunks to load per frame
+    const chunkWorker = new Worker('chunkWorker.js'); // A separate worker script for chunk generation
+    const pendingChunks = new Map(); // Track chunks being processed by worker
 
     // The LOADING_REQUIREMENTS constant is used to define how the loading screen will behave.
     // "Local" means it only need to load and render chunks within the visible radius.
@@ -396,65 +728,400 @@
      *   Single Number "[number]": The number of blocks will be number.
      *   Coordinates "$[yMin]-[yMax]": The number of blocks will be a random number between min and max.
      *********************************************/
-    const BIOMES = {
-        plains: {
-            baseHeight: 55, // Base height for this biome
-            heightVariation: 2, // Hill height
-            frequency: 0.05, // Hill spread
-            rarity: 80, // Frequency of biome (0-100)
-            transition: "Full", // The rate of transition between neighboring biomes
-            size: 0.5, // The size of the biome
-            fill: none, // Fill the open area with the specified block under the number.
-            defaultLayer: "stone", // Default block type for this biome
-            layers: [
-                { type: "dirt", number: "2-5" },
-            ],
-            structures: [
-                { type: "tree", frequency: 0.5 },
-                { type: "house", frequency: 0.01 }
-            ]
-        },
-        hills: {
-            baseHeight: 75, // Base height for this biome
-            heightVariation: 8, // Hill height
-            frequency: 0.05, // Hill spread
-            rarity: 60, // Frequency of biome (0-100)
-            transition: "Smooth", // The rate of transition between neighboring biomes
-            size: 0.5, // The size of the biome
-            fill: none, // Fill the open area with the specified block under the number.
-            defaultLayer: "stone", // Default block type for this biome
-            layers: [
-                
-            ],
-            structures: [
-                { type: "tree", frequency: 0.002 } // Reduced from 0.02 to 0.002 (0.2%)
-            ]
-        },
-        ocean: {
-            baseHeight: 15, // Base height for this biome
-            heightVariation: 20, // Hill height
-            frequency: 0.02, // Hill spread
-            rarity: 60, // Frequency of biome (0-100)
-            transition: "Smooth", // The rate of transition between neighboring biomes
-            size: 0.8, // The size of the biome
-            fill: { type: "water", height: 40 }, // Fill the open area with the specified block under the height.
-            defaultLayer: "stone", // Default block type for this biome
-            layers: [
-                { type: "sand", number: "5-12" },
-            ],
+    // BIOMES will be populated by GamePack data
+    const BIOMES = {};
+
+    // Configuration objects will be populated by GamePack data
+    const GEOLOGICAL_FORMATIONS = {};
+    const TERRAIN_BOUNDS = {};
+    const NOISE_CONFIG = {};
+
+    // === ADVANCED TERRAIN GENERATION FUNCTIONS ===
+
+    // Multi-octave noise generator with domain warping
+    class AdvancedNoiseGenerator {
+        constructor(seed) {
+            this.seed = seed;
+            this.noiseGen = new ImprovedNoise(); // Use existing noise generator
         }
-    };
+
+        // Generate multi-octave noise
+        multiOctaveNoise(x, z, config) {
+            let value = 0;
+            let amplitude = config.amplitude;
+            let frequency = config.frequency;
+            let maxValue = 0;
+
+            for (let i = 0; i < config.octaves; i++) {
+                value += this.noiseGen.noise(x * frequency, 0, z * frequency) * amplitude;
+                maxValue += amplitude;
+                amplitude *= 0.5;
+                frequency *= 2.0;
+            }
+
+            return value / maxValue;
+        }
+
+        // Domain-warped noise for more organic patterns
+        domainWarpedNoise(x, z, config, warpStrength = 50) {
+            const warpX = this.noiseGen.noise(x * 0.01, 0, z * 0.01) * warpStrength;
+            const warpZ = this.noiseGen.noise(x * 0.01, 100, z * 0.01) * warpStrength;
+            
+            return this.multiOctaveNoise(x + warpX, z + warpZ, config);
+        }
+
+        // Ridged noise for mountain ridges and valleys
+        ridgedNoise(x, z, config) {
+            let value = 0;
+            let amplitude = config.amplitude;
+            let frequency = config.frequency;
+
+            for (let i = 0; i < config.octaves; i++) {
+                let n = Math.abs(this.noiseGen.noise(x * frequency, 0, z * frequency));
+                n = 1.0 - n;
+                n = n * n;
+                value += n * amplitude;
+                amplitude *= 0.5;
+                frequency *= 2.0;
+            }
+
+            return value;
+        }
+    }
+
+    // Temperature and Moisture-based biome compatibility checker
+    function areBiomesCompatible(biome1, biome2) {
+        if (!BIOMES[biome1] || !BIOMES[biome2]) return false;
+        
+        const b1 = BIOMES[biome1];
+        const b2 = BIOMES[biome2];
+        
+        // Universal biomes can be adjacent to any biome
+        if (b1.isUniversalBiome || b2.isUniversalBiome) return true;
+        
+        // Check explicit compatibility lists first
+        if (b1.compatibleBiomes && !b1.compatibleBiomes.includes(biome2)) return false;
+        if (b1.blockedBiomes && b1.blockedBiomes.includes(biome2)) return false;
+        if (b2.compatibleBiomes && !b2.compatibleBiomes.includes(biome1)) return false;
+        if (b2.blockedBiomes && b2.blockedBiomes.includes(biome1)) return false;
+        
+        // Calculate temperature and moisture compatibility
+        const tempDiff = Math.abs(b1.temperature - b2.temperature);
+        const moistureDiff = Math.abs(b1.moisture - b2.moisture);
+        
+        // More lenient compatibility - temperature difference < 50 and moisture difference < 0.6
+        return tempDiff < 50 && moistureDiff < 0.6;
+    }
+
+    // Calculate biome transition type based on transition attributes
+    function getBiomeTransitionType(biome1, biome2) {
+        if (!BIOMES[biome1] || !BIOMES[biome2]) return 'incompatible';
+        if (!areBiomesCompatible(biome1, biome2)) return 'incompatible';
+        
+        const b1 = BIOMES[biome1];
+        const b2 = BIOMES[biome2];
+        
+        // Handle mixed transition types
+        if (b1.transition === "Auto" && b2.transition === "Auto") return 'mixed';
+        if (b1.transition === "Auto") return b2.transition.toLowerCase();
+        if (b2.transition === "Auto") return b1.transition.toLowerCase();
+        
+        // Both have specific transition types - use the more restrictive one
+        const transitions = [b1.transition, b2.transition];
+        if (transitions.includes("None")) return 'none';
+        if (transitions.includes("Steep")) return 'steep';
+        if (transitions.includes("Gentle")) return 'gentle';
+        
+        return 'gentle'; // Default fallback
+    }
+
+    // Get transition slope steepness based on transition type
+    function getTransitionSteepness(transitionType, heightDiff) {
+        switch(transitionType) {
+            case 'none': return heightDiff; // Immediate cliff/drop
+            case 'steep': return heightDiff * 0.7; // Steep but not vertical
+            case 'gentle': return heightDiff * 0.3; // Gradual slope
+            case 'mixed': return heightDiff * 0.5; // Moderate slope
+            default: return heightDiff * 0.4; // Default moderate
+        }
+    }
+
+    // Generate continental-scale elevation
+    function generateContinentalElevation(x, z, noiseGen) {
+        const continentalNoise = noiseGen.multiOctaveNoise(x, z, NOISE_CONFIG.continental);
+        const regionalNoise = noiseGen.multiOctaveNoise(x, z, NOISE_CONFIG.regional);
+        
+        // Create landmasses and ocean basins
+        const continentalShape = continentalNoise * 0.7 + regionalNoise * 0.3;
+        const baseElevation = TERRAIN_BOUNDS.sea_level + continentalShape;
+        
+        return Math.max(TERRAIN_BOUNDS.min_elevation, baseElevation);
+    }
+
+    // Detect and apply geological formations
+    function applyGeologicalFormations(x, z, baseElevation, noiseGen) {
+        const formationNoise = noiseGen.multiOctaveNoise(x, z, NOISE_CONFIG.formation);
+        const formationStrength = Math.abs(formationNoise);
+        
+        let finalElevation = baseElevation;
+        
+        // Determine formation type based on noise characteristics
+        if (formationStrength > 0.7) {
+            // Mesa or plateau formation
+            const mesa = GEOLOGICAL_FORMATIONS.MESA;
+            const plateauNoise = noiseGen.ridgedNoise(x, z, { frequency: 0.008, amplitude: 15, octaves: 2 });
+            finalElevation += plateauNoise * mesa.elevation_modifier;
+            
+            // Add cliff edges
+            const edgeNoise = Math.abs(noiseGen.noiseGen.noise(x * 0.02, 0, z * 0.02));
+            if (edgeNoise > 0.6) {
+                finalElevation += mesa.edge_steepness * (edgeNoise - 0.6) * 10;
+            }
+        } else if (formationStrength > 0.4) {
+            // Ridge formation
+            const ridge = GEOLOGICAL_FORMATIONS.RIDGE;
+            const ridgeNoise = noiseGen.ridgedNoise(x, z, { frequency: 0.015, amplitude: 20, octaves: 3 });
+            finalElevation += ridgeNoise * ridge.elevation_modifier;
+        } else if (formationNoise < -0.4) {
+            // Valley formation
+            const valley = GEOLOGICAL_FORMATIONS.VALLEY;
+            const valleyDepth = Math.abs(formationNoise + 0.4) * 30;
+            finalElevation -= valleyDepth * valley.elevation_modifier;
+        }
+        
+        return finalElevation;
+    }
+
+    // Enhanced biome selection with Temperature/Moisture compatibility
+    function selectBiomeWithAdjacency(x, z, noiseGen, existingBiomes) {
+        const biomeNoise = noiseGen.domainWarpedNoise(x, z, NOISE_CONFIG.biome_warp);
+        const elevation = generateContinentalElevation(x, z, noiseGen);
+        
+        // Generate temperature and moisture values based on location and noise
+        const temperatureNoise = noiseGen.multiOctaveNoise(x * 0.001, z * 0.001, { frequency: 0.02, amplitude: 1, octaves: 3 });
+        const moistureNoise = noiseGen.multiOctaveNoise(x * 0.0015, z * 0.0015, { frequency: 0.025, amplitude: 1, octaves: 4 });
+        
+        // Simpler temperature calculation - range from 10°F to 130°F to match our biomes
+        const baseTemp = 70 + temperatureNoise * 60; // Range: 10°F to 130°F
+        const baseMoisture = Math.max(0, Math.min(1, 0.5 + moistureNoise * 0.5)); // Range: 0.0 to 1.0
+        
+        // Debug logging for biome selection
+        if (Math.random() < 0.01) { // Only log 1% of the time to avoid spam
+            console.log(`Biome selection at (${x}, ${z}): temp=${baseTemp.toFixed(1)}°F, moisture=${baseMoisture.toFixed(2)}, elevation=${elevation.toFixed(1)}`);
+        }
+        
+        // Find biomes with similar temperature and moisture
+        let suitableBiomes = Object.keys(BIOMES).filter(biomeName => {
+            const biome = BIOMES[biomeName];
+            
+            // Check elevation suitability
+            const elevationDiff = Math.abs(elevation - biome.baseHeight);
+            if (elevationDiff > biome.heightVariation * 2) return false;
+            
+            // Universal biomes are always suitable
+            if (biome.isUniversalBiome) return true;
+            
+            // Check temperature and moisture compatibility
+            const tempDiff = Math.abs(baseTemp - biome.temperature);
+            const moistDiff = Math.abs(baseMoisture - biome.moisture);
+            
+            return tempDiff < 45 && moistDiff < 0.5;
+        });
+        
+        // Debug logging for suitable biomes
+        if (Math.random() < 0.01) {
+            console.log(`Suitable biomes at (${x}, ${z}):`, suitableBiomes);
+            console.log(`Available biomes:`, Object.keys(BIOMES).map(name => ({
+                name,
+                temp: BIOMES[name].temperature,
+                moisture: BIOMES[name].moisture,
+                baseHeight: BIOMES[name].baseHeight
+            })));
+        }
+        
+        // Check adjacency with existing biomes
+        const nearbyBiomes = getNearbyBiomes(x, z, existingBiomes, 100);
+        if (nearbyBiomes.length > 0) {
+            suitableBiomes = suitableBiomes.filter(biomeName => {
+                const biome = BIOMES[biomeName];
+                
+                // Universal biomes can be placed anywhere
+                if (biome.isUniversalBiome) return true;
+                
+                // Check compatibility with nearby biomes
+                return nearbyBiomes.some(nearbyBiome => 
+                    areBiomesCompatible(biomeName, nearbyBiome)
+                );
+            });
+        }
+        
+        // If no suitable biomes found, fallback to all biomes to ensure variety
+        if (suitableBiomes.length === 0) {
+            suitableBiomes = Object.keys(BIOMES);
+        }
+        
+        // Select biome based on weighted probability
+        const weights = suitableBiomes.map(biomeName => {
+            const biome = BIOMES[biomeName];
+            const rarityWeight = biome.rarity / 100;
+            
+            // Prefer biomes with closer temperature/moisture match
+            const tempMatch = 1 - Math.min(1, Math.abs(baseTemp - biome.temperature) / 50);
+            const moistMatch = 1 - Math.min(1, Math.abs(baseMoisture - biome.moisture) / 1);
+            const matchBonus = (tempMatch + moistMatch) / 2;
+            
+            return rarityWeight * matchBonus;
+        });
+        
+        // Weighted random selection
+        const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+        const randomValue = Math.abs(biomeNoise) * totalWeight;
+        
+        let currentWeight = 0;
+        for (let i = 0; i < suitableBiomes.length; i++) {
+            currentWeight += weights[i];
+            if (randomValue <= currentWeight) {
+                return suitableBiomes[i];
+            }
+        }
+        
+        return suitableBiomes[0]; // Fallback
+    }
+
+    // Get nearby biomes for adjacency checking
+    function getNearbyBiomes(x, z, existingBiomes, radius) {
+        const nearbyBiomes = [];
+        const checkRadius = radius;
+        
+        for (let dx = -checkRadius; dx <= checkRadius; dx += 50) {
+            for (let dz = -checkRadius; dz <= checkRadius; dz += 50) {
+                const key = `${Math.floor((x + dx) / 50)},${Math.floor((z + dz) / 50)}`;
+                if (existingBiomes.has(key)) {
+                    const biome = existingBiomes.get(key);
+                    if (!nearbyBiomes.includes(biome)) {
+                        nearbyBiomes.push(biome);
+                    }
+                }
+            }
+        }
+        
+        return nearbyBiomes;
+    }
+
+    // Calculate sophisticated height with all factors
+    function calculateSophisticatedHeight(x, z, biomeName, noiseGen, neighborBiomes) {
+        const biome = BIOMES[biomeName];
+        
+        // Base continental elevation
+        let elevation = generateContinentalElevation(x, z, noiseGen);
+        
+        // Apply geological formations
+        elevation = applyGeologicalFormations(x, z, elevation, noiseGen);
+        
+        // Local biome-specific terrain
+        const localNoise = noiseGen.multiOctaveNoise(x, z, NOISE_CONFIG.local);
+        const detailNoise = noiseGen.multiOctaveNoise(x, z, NOISE_CONFIG.detail);
+        const microNoise = noiseGen.multiOctaveNoise(x, z, NOISE_CONFIG.micro);
+        
+        // Combine local terrain features
+        let biomeModification = localNoise * biome.heightVariation * 0.6;
+        biomeModification += detailNoise * biome.heightVariation * 0.3;
+        biomeModification += microNoise * biome.heightVariation * 0.1;
+        
+        // Apply biome-specific terrain characteristics
+        if (biomeName.includes('mountain') || biomeName.includes('peaks')) {
+            // Use ridged noise for mountain peaks
+            const ridgedTerrain = noiseGen.ridgedNoise(x, z, { frequency: 0.02, amplitude: 30, octaves: 4 });
+            biomeModification += ridgedTerrain;
+        } else if (biomeName.includes('desert') || biomeName.includes('dunes')) {
+            // Use domain warping for sand dunes
+            const duneNoise = noiseGen.domainWarpedNoise(x, z, { frequency: 0.03, amplitude: 15, octaves: 3 }, 30);
+            biomeModification += duneNoise * 0.8;
+        } else if (biomeName.includes('ocean') || biomeName.includes('lake')) {
+            // Smooth underwater terrain
+            biomeModification *= 0.3;
+        }
+        
+        // Smooth transitions between neighboring biomes
+        if (neighborBiomes && neighborBiomes.length > 0) {
+            let transitionWeight = 0;
+            let transitionSum = 0;
+            
+            neighborBiomes.forEach(neighbor => {
+                const transitionType = getBiomeTransitionType(biomeName, neighbor.biome);
+                if (transitionType !== 'incompatible') {
+                    const distance = Math.sqrt(
+                        Math.pow(x - neighbor.x, 2) + Math.pow(z - neighbor.z, 2)
+                    );
+                    const weight = Math.max(0, 1 - distance / 200);
+                    
+                    if (weight > 0) {
+                        const neighborBiome = BIOMES[neighbor.biome];
+                        const neighborHeight = neighborBiome.baseHeight + 
+                                              neighborBiome.heightVariation * localNoise * 0.5;
+                        
+                        transitionSum += neighborHeight * weight;
+                        transitionWeight += weight;
+                    }
+                }
+            });
+            
+            if (transitionWeight > 0) {
+                const averageNeighborHeight = transitionSum / transitionWeight;
+                const blendFactor = Math.min(0.4, transitionWeight);
+                elevation = elevation * (1 - blendFactor) + averageNeighborHeight * blendFactor;
+            }
+        }
+        
+        // Apply final biome modification
+        elevation += biomeModification;
+        
+        // Ensure within bounds
+        elevation = Math.max(TERRAIN_BOUNDS.min_elevation, 
+                           Math.min(TERRAIN_BOUNDS.max_elevation, elevation));
+        
+        // Update dynamic bounds if adaptive
+        if (TERRAIN_BOUNDS.adaptive_min && elevation < TERRAIN_BOUNDS.min_elevation + TERRAIN_BOUNDS.safety_margin) {
+            TERRAIN_BOUNDS.min_elevation = Math.min(TERRAIN_BOUNDS.min_elevation, elevation - TERRAIN_BOUNDS.safety_margin);
+        }
+        if (TERRAIN_BOUNDS.adaptive_max && elevation > TERRAIN_BOUNDS.max_elevation - TERRAIN_BOUNDS.safety_margin) {
+            TERRAIN_BOUNDS.max_elevation = Math.max(TERRAIN_BOUNDS.max_elevation, elevation + TERRAIN_BOUNDS.safety_margin);
+        }
+        
+        return Math.floor(elevation);
+    }
+
+    // Enhanced structure placement logic
+    function shouldPlaceStructure(x, y, z, structure, biomeName, terrainSlope, moistureLevel) {
+        const baseFrequency = structure.frequency / 100;
+        let placementProbability = baseFrequency;
+        
+        // Adjust based on terrain slope
+        if (structure.type === 'tree') {
+            // Trees prefer gentler slopes
+            placementProbability *= Math.max(0.1, 1 - terrainSlope * 2);
+            // Trees prefer moderate moisture
+            placementProbability *= Math.max(0.3, 1 - Math.abs(moistureLevel - 0.5));
+        } else if (structure.type === 'house') {
+            // Houses prefer flat areas
+            placementProbability *= Math.max(0.05, 1 - terrainSlope * 4);
+            // Houses avoid water areas
+            placementProbability *= moistureLevel < 0.7 ? 1 : 0.1;
+        }
+        
+        // Biome-specific adjustments
+        if (biomeName.includes('mountain') || biomeName.includes('peaks')) {
+            placementProbability *= 0.3; // Fewer structures on mountains
+        } else if (biomeName.includes('forest')) {
+            if (structure.type === 'tree') placementProbability *= 1.5;
+        }
+        
+        return Math.random() < placementProbability;
+    }
 
     // Add a mapping for block type strings
-    const BLOCK_TYPES = {
-        stone: 1,
-        dirt: 2,
-        wood: 3,
-        leaves: 4,
-        sand: 5,
-        snow: 6,
-        water: 7 // new water block type
-    };
+    // BLOCK_TYPES will be populated by GamePack data
+    const BLOCK_TYPES = {};
 
     // Structure Generators - Methods for generating different structures
     const StructureGenerators = {
@@ -546,16 +1213,10 @@
         }
     };
 
-    // Updated blockColors to use block type names with Color and transparency properties.
-    const blockColors = {
-        stone: { color: "blocks/Stone.png", transparency: 1, sideRendering: "one" },
-        dirt: { color: "blocks/Grass_Side.png", faces: {top: "blocks/Grass.png"}, transparency: 1, sideRendering: "one" },
-        wood: { color: "blocks/Log_Side.png", faces: {top: "blocks/Log_Top.png", bottom: "blocks/Log_Top.png"}, transparency: 1, sideRendering: "one" },
-        leaves: { color: new THREE.Color(0x88cc88), transparency: 1, sideRendering: "one" },
-        sand: { color: "blocks/Sand.png", transparency: 1, sideRendering: "one" },
-        snow: { color: new THREE.Color(0xffffff), transparency: 1, sideRendering: "one" },
-        water: { color: "blocks/Water2.png", transparency: 0.7, sideRendering: "both", alphaTest: 0.1, seeThrough: true } // Updated water settings
-    };
+    // blockColors will be populated by GamePack data
+    const blockColors = {};
+
+    let defaultBiome = "plains"; // Default biome to use if none is specified
 
     // Texture support: preload textures for blocks that specify an image path in blockColors
     const textureLoader = new THREE.TextureLoader();
@@ -566,29 +1227,62 @@
         console.error(`Failed to load texture for ${blockName}: ${texturePath}`);
     }
 
-    // Load textures for each block type
-    Object.entries(blockColors).forEach(([name, props]) => {
-        // Handle base texture
-        if (typeof props.color === 'string') {
-            try {
-                props.texture = textureLoader.load(
-                    props.color,
-                    (texture) => {
-                        // Enable transparency for the texture
-                        texture.premultiplyAlpha = true;
-                        texture.format = THREE.RGBAFormat;
-                        // Store the block name in the texture's userData for later reference
-                        texture.userData = { blockName: name };
-                    },
-                    undefined,
-                    () => onTextureLoadError(name, props.color)
-                );
-                props.texture.wrapS = THREE.RepeatWrapping;
-                props.texture.wrapT = THREE.RepeatWrapping;
-                props.color = new THREE.Color(0xffffff);
-            } catch (e) {
-                console.error(`Error loading texture for ${name}:`, e);
-                props.color = new THREE.Color(0xff00ff); // Fallback color
+    // Helper function to create worker constants
+    function getWorkerConstants() {
+        return {
+            CHUNK_SIZE,
+            WORLD_HEIGHT,
+            BLOCK_TYPES,
+            BIOMES,
+            worldSeed,
+            blockColors: getSerializableBlockProperties(blockColors),
+            GEOLOGICAL_FORMATIONS,
+            TERRAIN_BOUNDS,
+            NOISE_CONFIG,
+            AdvancedNoiseGenerator: AdvancedNoiseGenerator.toString(),
+            StructureGenerators: {
+                tree: StructureGenerators.tree.toString(),
+                house: StructureGenerators.house.toString()
+            }
+        };
+    }
+
+    // Function to load textures for all blocks
+    function loadBlockTextures() {
+        console.log("Loading block textures...");
+        
+        // Load textures for each block type
+        Object.entries(blockColors).forEach(([name, props]) => {
+            console.log(`Processing textures for block ${name}:`, props);
+            // Handle base texture
+            if (typeof props.color === 'string') {
+                // Check if it's a hex color (starts with #) or a texture path
+                if (props.color.startsWith('#')) {
+                    // It's a hex color - convert to THREE.Color
+                    props.color = new THREE.Color(props.color);
+                    console.log(`Applied hex color for ${name}:`, props.color);
+                } else {
+                    // It's a texture path - load the texture
+                    try {
+                    props.texture = textureLoader.load(
+                        props.color,
+                        (texture) => {
+                            // Enable transparency for the texture
+                            texture.premultiplyAlpha = true;
+                            texture.format = THREE.RGBAFormat;
+                            // Store the block name in the texture's userData for later reference
+                            texture.userData = { blockName: name };
+                        },
+                        undefined,
+                        () => onTextureLoadError(name, props.color)
+                    );
+                    props.texture.wrapS = THREE.RepeatWrapping;
+                    props.texture.wrapT = THREE.RepeatWrapping;
+                    props.color = new THREE.Color(0xffffff);
+                } catch (e) {
+                    console.error(`Error loading texture for ${name}:`, e);
+                    props.color = new THREE.Color(0xff00ff); // Fallback color
+                }
             }
         }
         
@@ -596,7 +1290,16 @@
         if (props.faces) {
             Object.entries(props.faces).forEach(([face, val]) => {
                 if (typeof val === 'string') {
-                    try {
+                    // Check if it's a hex color or texture path
+                    if (val.startsWith('#')) {
+                        // It's a hex color
+                        props.faces[face] = {
+                            color: new THREE.Color(val)
+                        };
+                        console.log(`Applied hex color for ${name} ${face}:`, val);
+                    } else {
+                        // It's a texture path
+                        try {
                         const texture = textureLoader.load(
                             val,
                             (texture) => {
@@ -621,9 +1324,13 @@
                         };
                     }
                 }
+                }
             });
         }
     });
+    
+    console.log("Block textures loaded successfully");
+    }
 
     // Helper to map BLOCK_TYPES number back to its name.
     function getBlockName(blockTypeNumber) {
@@ -634,7 +1341,7 @@
     const playerHeight = 1.8;       
     const playerRadius = 0.3;       
     const jumpImpulse = 13; 
-    const worldSeed = 1;        
+    const worldSeed = 2000;        
 
     // Global variables for rendering, scene, and input.
     let scene, renderer;
@@ -733,6 +1440,182 @@
     let chunkUpdatesLastTime = performance.now();
     let showDebugInfo = true; // Toggle for debug info display
 
+    // Function to get the current biome at player position
+    function getCurrentBiome(x, z) {
+        // Use the improved biome selection algorithm
+        return selectBiomeWithSeed(x, z, worldSeed);
+    }
+
+    // Seed-driven biome selection with natural distribution
+    function selectBiomeWithSeed(x, z, seed) {
+        // Create seeded noise generator
+        const noiseGen = new ImprovedNoise();
+        
+        // Use multiple noise layers for natural biome distribution
+        const biomeScale = 0.0008; // Base scale for biome regions
+        const detailScale = 0.003; // Detail noise for variation
+        const warpScale = 0.0015; // Domain warping for organic shapes
+        
+        // Apply domain warping for organic biome shapes
+        const warpX = noiseGen.noise((x + seed) * warpScale, seed * 0.001, z * warpScale) * 200;
+        const warpZ = noiseGen.noise(x * warpScale, (seed + 1000) * 0.001, (z + seed) * warpScale) * 200;
+        
+        const warpedX = x + warpX;
+        const warpedZ = z + warpZ;
+        
+        // Generate base biome noise
+        const biomeNoise = noiseGen.noise(warpedX * biomeScale, seed * 0.01, warpedZ * biomeScale);
+        const detailNoise = noiseGen.noise(warpedX * detailScale, (seed + 500) * 0.01, warpedZ * detailScale);
+        const elevationNoise = noiseGen.noise(x * 0.001, (seed + 1500) * 0.01, z * 0.001);
+        
+        // Combine noises for biome selection
+        const combinedNoise = (biomeNoise + detailNoise * 0.3 + elevationNoise * 0.2) / 1.5;
+        const normalizedNoise = (combinedNoise + 1) / 2; // Normalize to 0-1
+        
+        // Create biome weight array based on rarity and size
+        const biomeWeights = [];
+        const biomeNames = Object.keys(BIOMES);
+        
+        for (const biomeName of biomeNames) {
+            const biome = BIOMES[biomeName];
+            // Weight combines rarity (how often it appears) and size (how large regions are)
+            const weight = (biome.rarity / 100) * biome.size * biome.size;
+            biomeWeights.push({ name: biomeName, weight: weight, biome: biome });
+        }
+        
+        // Sort by weight for better distribution
+        biomeWeights.sort((a, b) => b.weight - a.weight);
+        
+        // Calculate elevation for biome filtering
+        const elevation = 65 + elevationNoise * 80; // Rough elevation estimate
+        
+        // Filter biomes by elevation compatibility
+        const suitableBiomes = biomeWeights.filter(item => {
+            const heightDiff = Math.abs(elevation - item.biome.baseHeight);
+            return heightDiff < item.biome.heightVariation * 1.5;
+        });
+        
+        if (suitableBiomes.length === 0) {
+            return "plains"; // Fallback
+        }
+        
+        // Calculate cumulative weights
+        let totalWeight = 0;
+        for (const item of suitableBiomes) {
+            totalWeight += item.weight;
+        }
+        
+        // Select biome based on noise value
+        let target = normalizedNoise * totalWeight;
+        for (const item of suitableBiomes) {
+            target -= item.weight;
+            if (target <= 0) {
+                return item.name;
+            }
+        }
+        
+        return suitableBiomes[0].name;
+    }
+
+    // Enhanced biome selection with Temperature/Moisture adjacency checking
+    function selectBiomeWithAdjacency(x, z, noiseGen, existingBiomes, seed) {
+        // Create seeded noise generator for consistent biome placement
+        const seededNoise = new ImprovedNoise();
+        
+        // Generate temperature and moisture based on location and seed
+        const tempNoise = seededNoise.noise((x + seed) * 0.001, seed * 0.01, z * 0.001);
+        const moistNoise = seededNoise.noise(x * 0.0015, (seed + 1000) * 0.01, (z + seed) * 0.0015);
+        const elevationNoise = seededNoise.noise(x * 0.002, (seed + 2000) * 0.01, z * 0.002);
+        
+        // Calculate realistic temperature (affected by latitude and elevation)
+        const elevation = 65 + elevationNoise * 80;
+        const baseTemp = 70 + tempNoise * 60; // Simplified: 10°F to 130°F range
+        const baseMoisture = Math.max(0, Math.min(1, 0.5 + moistNoise * 0.5)); // 0.0 to 1.0 range
+        
+        // Find biomes with compatible temperature and moisture
+        let suitableBiomes = Object.keys(BIOMES).filter(biomeName => {
+            const biome = BIOMES[biomeName];
+            
+            // Check elevation suitability
+            const elevationDiff = Math.abs(elevation - biome.baseHeight);
+            if (elevationDiff > biome.heightVariation * 2) return false;
+            
+            // Universal biomes are always suitable
+            if (biome.isUniversalBiome) return true;
+            
+            // Check temperature and moisture compatibility
+            const tempDiff = Math.abs(baseTemp - biome.temperature);
+            const moistDiff = Math.abs(baseMoisture - biome.moisture);
+            
+            return tempDiff < 45 && moistDiff < 0.5;
+        });
+        
+        // Check adjacency with existing biomes if any exist
+        const nearbyBiomes = getNearbyBiomes(x, z, existingBiomes, 150);
+        if (nearbyBiomes.length > 0) {
+            suitableBiomes = suitableBiomes.filter(biomeName => {
+                const biome = BIOMES[biomeName];
+                
+                // Universal biomes can always be placed
+                if (biome.isUniversalBiome) return true;
+                
+                // Check explicit compatibility lists first
+                if (biome.compatibleBiomes) {
+                    return nearbyBiomes.some(nearby => biome.compatibleBiomes.includes(nearby));
+                }
+                
+                if (biome.blockedBiomes) {
+                    return !nearbyBiomes.some(nearby => biome.blockedBiomes.includes(nearby));
+                }
+                
+                // Default temperature/moisture compatibility
+                return nearbyBiomes.some(nearbyBiome => 
+                    areBiomesCompatible(biomeName, nearbyBiome)
+                );
+            });
+        }
+        
+        // Fallback to universal biomes if no suitable biomes found
+        if (suitableBiomes.length === 0) {
+            suitableBiomes = Object.keys(BIOMES).filter(biomeName => 
+                BIOMES[biomeName].isUniversalBiome
+            );
+        }
+        
+        // Final fallback
+        if (suitableBiomes.length === 0) {
+            suitableBiomes = ['plains', 'ocean'];
+        }
+        
+        // Select biome using weighted probability based on rarity and climate match
+        const weights = suitableBiomes.map(biomeName => {
+            const biome = BIOMES[biomeName];
+            const rarityWeight = biome.rarity / 100;
+            
+            // Calculate climate match bonus
+            const tempMatch = 1 - Math.min(1, Math.abs(baseTemp - biome.temperature) / 60);
+            const moistMatch = 1 - Math.min(1, Math.abs(baseMoisture - biome.moisture) / 1);
+            const climateMatch = (tempMatch + moistMatch) / 2;
+            
+            return rarityWeight * climateMatch;
+        });
+        
+        // Weighted random selection using seeded noise
+        const biomeNoise = seededNoise.noise(x * 0.005, seed * 0.01, z * 0.005);
+        const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+        const randomValue = Math.abs(biomeNoise) * totalWeight;
+        
+        let currentWeight = 0;
+        for (let i = 0; i < suitableBiomes.length; i++) {
+            currentWeight += weights[i];
+            if (randomValue <= currentWeight) {
+                return suitableBiomes[i];
+            }
+        }
+        
+        return suitableBiomes[0]; // Fallback
+    }
+
     // Function to update game info display
     function updateGameInfo() {
         const playerPos = yawObject.position;
@@ -750,6 +1633,11 @@
         // Calculate chunk coordinates
         const chunkX = Math.floor(playerPos.x / CHUNK_SIZE);
         const chunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
+        
+        // Get current biome
+        const currentBiome = getCurrentBiome(playerPos.x, playerPos.z);
+        const biomeData = BIOMES[currentBiome];
+        const biomeDisplayName = currentBiome.charAt(0).toUpperCase() + currentBiome.slice(1).replace(/_/g, ' ');
         
         // Create status indicators
         const statusIndicators = [];
@@ -788,10 +1676,31 @@
                 </div>
                 
                 <div style="margin-bottom: 6px;">
+                    <div style="color: #90EE90;">Biome:</div>
+                    <div style="margin-left: 10px;">
+                        <span style="color: #98FB98;">${biomeDisplayName}</span><br>
+                        Height: ${biomeData ? biomeData.baseHeight : 'N/A'}±${biomeData ? biomeData.heightVariation : 'N/A'}<br>
+                        Rarity: ${biomeData ? biomeData.rarity : 'N/A'}%
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
                     <div style="color: #ff88ff;">Game:</div>
                     <div style="margin-left: 10px;">
                         Mode: ${gameMode}<br>
                         Entities: ${entities}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #FFB6C1;">Game Packs:</div>
+                    <div style="margin-left: 10px;">
+                        Active: ${WATCHER.gamePacks.length}<br>
+                        Loaded: ${GamePackLoader ? GamePackLoader.getPackNames().length : 0}<br>
+                        ${WATCHER.gamePacks.slice(0, 3).map(pack => 
+                            pack === '**Default**' ? '<span style="color: #90EE90;">Default</span>' : 
+                            `<span style="color: #87CEEB;">${pack}</span>`
+                        ).join(', ')}${WATCHER.gamePacks.length > 3 ? '...' : ''}
                     </div>
                 </div>
                 
@@ -808,113 +1717,6 @@
             document.exitPointerLock();
         }
     }, { passive: true });
-
-    // BEGIN new 8-button movement controls and jump button
-
-    // Create container for left directional buttons
-    const leftControlContainer = document.createElement("div");
-    leftControlContainer.style.position = "absolute";
-    leftControlContainer.style.left = "20px";
-    leftControlContainer.style.bottom = "20px";
-    leftControlContainer.style.width = "150px";
-    leftControlContainer.style.height = "150px";
-    document.body.appendChild(leftControlContainer);
-
-    // Define the 8 directions with corresponding vectors and angles.
-    const directions = [
-        { name: "forward", vx: 0, vy: -1, angle: 90 },
-        { name: "forwardRight", vx: 1, vy: -1, angle: 45 },
-        { name: "right", vx: 1, vy: 0, angle: 0 },
-        { name: "backRight", vx: 1, vy: 1, angle: 315 },
-        { name: "back", vx: 0, vy: 1, angle: 270 },
-        { name: "backLeft", vx: -1, vy: 1, angle: 225 },
-        { name: "left", vx: -1, vy: 0, angle: 180 },
-        { name: "forwardLeft", vx: -1, vy: -1, angle: 135 }
-    ];
-    directions.forEach(dir => {
-        const btn = document.createElement("div");
-        btn.id = "btn-" + dir.name;
-        btn.innerHTML = dir.name;
-        btn.style.position = "absolute";
-        btn.style.width = "40px";
-        btn.style.height = "40px";
-        btn.style.background = "rgba(0,0,0,0.5)";
-        btn.style.color = "#fff";
-        btn.style.textAlign = "center";
-        btn.style.lineHeight = "40px";
-        btn.style.borderRadius = "50%";
-        // Position buttons on a circle within the container
-        const radius = 50;
-        const centerX = 75;
-        const centerY = 75;
-        const rad = dir.angle * Math.PI/180;
-        btn.style.left = (centerX + radius * Math.cos(rad) - 20) + "px";
-        btn.style.top = (centerY - radius * Math.sin(rad) - 20) + "px";
-        // On touchstart, set movement flags according to the direction.
-        btn.addEventListener("touchstart", function(e) {
-            e.preventDefault();
-            moveForward = (dir.vy < 0);
-            moveBackward = (dir.vy > 0);
-            moveRight = (dir.vx > 0);
-            moveLeft = (dir.vx < 0);
-        }, false);
-        btn.addEventListener("touchend", function(e) {
-            e.preventDefault();
-            moveForward = moveBackward = moveRight = moveLeft = false;
-        }, false);
-        leftControlContainer.appendChild(btn);
-    });
-
-    // Create jump button on the right side
-    const jumpButton = document.createElement("div");
-    jumpButton.style.position = "absolute";
-    jumpButton.style.right = "20px";
-    jumpButton.style.bottom = "20px";
-    jumpButton.style.width = "80px";
-    jumpButton.style.height = "80px";
-    jumpButton.style.background = "rgba(0,0,0,0.5)";
-    jumpButton.style.borderRadius = "50%";
-    jumpButton.style.textAlign = "center";
-    jumpButton.style.lineHeight = "80px";
-    jumpButton.style.fontSize = "20px";
-    jumpButton.innerHTML = "Jump";
-    document.body.appendChild(jumpButton);
-    jumpButton.addEventListener("touchstart", function(e) {
-        e.preventDefault();
-        if (canJump) {
-            velocity.y = jumpImpulse;
-            canJump = false;
-        }
-    }, false);
-
-    // Global screen touch for camera control (excluding the two button areas)
-    let cameraTouchStart = null;
-    document.addEventListener("touchstart", function(e) {
-        if (e.target !== leftControlContainer &&
-            e.target !== jumpButton &&
-            e.target.parentNode !== leftControlContainer) {
-                cameraTouchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        }
-    }, false);
-    document.addEventListener("touchmove", function(e) {
-        if (cameraTouchStart &&
-            e.target !== leftControlContainer &&
-            e.target !== jumpButton &&
-            e.target.parentNode !== leftControlContainer) {
-                let dx = e.touches[0].clientX - cameraTouchStart.x;
-                let dy = e.touches[0].clientY - cameraTouchStart.y;
-                yawObject.rotation.y -= dx * 0.005;
-                pitch -= dy * 0.005;
-                pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-                camera.rotation.x = pitch;
-                cameraTouchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                e.preventDefault();
-        }
-    }, false);
-    document.addEventListener("touchend", function(e) {
-        cameraTouchStart = null;
-    }, false);
-    // END new touch button controls
 
     /********************************************
      * Methods
@@ -1135,18 +1937,7 @@
             cx, 
             cz,
             requestGeometry: true,
-            constants: {
-                CHUNK_SIZE,
-                WORLD_HEIGHT,
-                BLOCK_TYPES,
-                BIOMES,
-                worldSeed,
-                blockColors: getSerializableBlockProperties(blockColors),
-                StructureGenerators: {
-                    tree: StructureGenerators.tree.toString(),
-                    house: StructureGenerators.house.toString()
-                }
-            }
+            constants: getWorkerConstants()
         });
         // The worker will compute and return the geometry
         const group = new THREE.Group();
@@ -1216,13 +2007,8 @@
         // Track chunk updates
         chunkUpdatesThisSecond++;
         
-        if (loadedChunks[key]) {
-            scene.remove(loadedChunks[key]);
-            loadedChunks[key].traverse(obj => {
-                if (obj.geometry) obj.geometry.dispose();
-                if (obj.material) obj.material.dispose();
-            });
-        }
+        // Don't remove the old mesh immediately - let it stay visible until new geometry is ready
+        // The worker response handler will replace it when the new geometry arrives
         
         // Request geometry data from the worker
         pendingChunks.set(key, true);
@@ -1230,18 +2016,7 @@
             cx, 
             cz,
             requestGeometry: true,
-            constants: {
-                CHUNK_SIZE,
-                WORLD_HEIGHT,
-                BLOCK_TYPES,
-                BIOMES,
-                worldSeed,
-                blockColors: getSerializableBlockProperties(blockColors),
-                StructureGenerators: {
-                    tree: StructureGenerators.tree.toString(),
-                    house: StructureGenerators.house.toString()
-                }
-            }
+            constants: getWorkerConstants()
         });
         const group = new THREE.Group();
 
@@ -1295,11 +2070,6 @@
         loadedChunks[key] = group;
     }
 
-    // Add chunk loading queue system
-    const MAX_CHUNKS_PER_FRAME = 5; // Increased from 2 since we're using a worker now
-    const chunkWorker = new Worker('chunkWorker.js');
-    const pendingChunks = new Map(); // Track chunks being processed by worker
-
     // Helper function to strip texture data from block properties
     function getSerializableBlockProperties(blockColors) {
         const serializableProps = {};
@@ -1307,7 +2077,19 @@
             serializableProps[name] = {
                 transparency: props.transparency || 1,
                 seeThrough: props.seeThrough || false,
-                sideRendering: props.sideRendering || "one"
+                sideRendering: props.sideRendering || "one",
+                color: props.color,
+                // Include face information for proper geometry separation
+                faces: props.faces ? Object.keys(props.faces).reduce((faceObj, faceName) => {
+                    faceObj[faceName] = {
+                        // We can't transfer textures, but we can mark that this face has a texture
+                        hasTexture: !!props.faces[faceName].texture || typeof props.faces[faceName] === 'string',
+                        color: props.faces[faceName].color
+                    };
+                    return faceObj;
+                }, {}) : null,
+                // Mark if this block has a default texture (from color property being a string)
+                hasDefaultTexture: typeof props.color === 'string' || !!props.texture
             };
         }
         return serializableProps;
@@ -1334,33 +2116,30 @@
         // Track chunk updates
         chunkUpdatesThisSecond++;
         
-        // If we receive chunk data with no geometry, store it and request geometry
-        if (!geometryData && chunkData) {
-            // Store chunk data
+        // If we receive chunk data, store it
+        if (chunkData) {
             chunkData.chunkX = cx;
             chunkData.chunkZ = cz;
             chunkDataStore[key] = chunkData;
-            
+        }
+        
+        // If we receive chunk data with no geometry, request geometry
+        if (chunkData && !geometryData) {
             // Request geometry in a separate message
             pendingChunks.set(key, true);
             chunkWorker.postMessage({
                 cx, 
                 cz,
                 requestGeometry: true,
-                constants: {
-                    CHUNK_SIZE,
-                    WORLD_HEIGHT,
-                    BLOCK_TYPES,
-                    BIOMES,
-                    worldSeed,
-                    blockColors: getSerializableBlockProperties(blockColors),
-                    StructureGenerators: {
-                        tree: StructureGenerators.tree.toString(),
-                        house: StructureGenerators.house.toString()
-                    }
-                }
+                constants: getWorkerConstants()
             });
             
+            if (isLoading) chunkLoaded();
+            return;
+        }
+        
+        // If we don't have geometry data, nothing to render
+        if (!geometryData) {
             if (isLoading) chunkLoaded();
             return;
         }
@@ -1511,18 +2290,7 @@
                 cx, 
                 cz,
                 requestGeometry: true,  // Always generate geometry in worker
-                constants: {
-                    CHUNK_SIZE,
-                    WORLD_HEIGHT,
-                    BLOCK_TYPES,
-                    BIOMES,
-                    worldSeed,
-                    blockColors: getSerializableBlockProperties(blockColors),
-                    StructureGenerators: {
-                        tree: StructureGenerators.tree.toString(),
-                        house: StructureGenerators.house.toString()
-                    }
-                }
+                constants: getWorkerConstants()
             });
         }
     }
@@ -1576,19 +2344,8 @@
                 const dz = cz - playerChunkZ;
                 const distance = Math.sqrt(dx*dx + dz*dz);
                 
-                // Always keep very close chunks
-                if (distance <= 2) return true;
-                
-                // For farther chunks, check if they're still in view
-                if (distance > loadDistance) return false;
-                
-                // Create chunk bounds for frustum checking
-                const chunkMin = new THREE.Vector3(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
-                const chunkMax = new THREE.Vector3((cx + 1) * CHUNK_SIZE, WORLD_HEIGHT, (cz + 1) * CHUNK_SIZE);
-                const chunkBox = new THREE.Box3(chunkMin, chunkMax);
-                
-                // Keep if in frustum or close enough
-                return cameraFrustum.intersectsBox(chunkBox);
+                // Keep chunks within visible radius
+                return distance <= VISIBLE_RADIUS;
             });
             const afterCount = chunkQueue.size();
             if (beforeCount !== afterCount) {
@@ -1596,7 +2353,7 @@
             }
         }
 
-        // Check chunks in view frustum and prioritize by distance
+        // Check chunks within visible radius and load them
         for (let dx = -loadDistance; dx <= loadDistance; dx++) {
             for (let dz = -loadDistance; dz <= loadDistance; dz++) {
                 const cx = playerChunkX + dx;
@@ -1612,55 +2369,26 @@
                     continue;
                 }
                 
-                // Calculate chunk center position to check against frustum
-                const chunkCenterX = (cx + 0.5) * CHUNK_SIZE;
-                const chunkCenterY = WORLD_HEIGHT / 2;
-                const chunkCenterZ = (cz + 0.5) * CHUNK_SIZE;
-                
-                // Create chunk bounds for frustum checking
-                const chunkMin = new THREE.Vector3(
-                    cx * CHUNK_SIZE, 
-                    0, 
-                    cz * CHUNK_SIZE
-                );
-                
-                const chunkMax = new THREE.Vector3(
-                    (cx + 1) * CHUNK_SIZE, 
-                    WORLD_HEIGHT, 
-                    (cz + 1) * CHUNK_SIZE
-                );
-                
-                // Create bounding box for the chunk
-                const chunkBox = new THREE.Box3(chunkMin, chunkMax);
-                
-                // If chunk is in view frustum or very close to player, queue it
+                // Load all chunks within the visible radius
                 const distanceToPlayer = Math.sqrt(dx*dx + dz*dz);
-                
-                if (distanceToPlayer <= 2 || cameraFrustum.intersectsBox(chunkBox)) {
+                if (distanceToPlayer <= VISIBLE_RADIUS) {
                     queueChunkLoad(cx, cz);
                 }
             }
         }
 
-        // Unload chunks that are too far or not in view (only after loading is complete)
+        // Unload chunks that are too far (only after loading is complete)
         if (!isLoading) {
             for (const key in loadedChunks) {
                 const [cx, cz] = key.split(",").map(Number);
                 
-                // Distance-based culling
+                // Distance-based culling only
                 const dx = cx - playerChunkX;
                 const dz = cz - playerChunkZ;
                 const distance = Math.sqrt(dx*dx + dz*dz);
                 
-                // Create chunk bounds for frustum checking
-                const chunkMin = new THREE.Vector3(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
-                const chunkMax = new THREE.Vector3((cx + 1) * CHUNK_SIZE, WORLD_HEIGHT, (cz + 1) * CHUNK_SIZE);
-                const chunkBox = new THREE.Box3(chunkMin, chunkMax);
-                
-                // Check if chunk is out of range or not in view frustum
-                const inFrustum = cameraFrustum.intersectsBox(chunkBox);
-                
-                if (distance > VISIBLE_RADIUS + 1 || (!inFrustum && distance > 2)) {
+                // Only unload chunks that are beyond the visible radius
+                if (distance > VISIBLE_RADIUS) {
                     unloadChunk(cx, cz);
                 }
             }
@@ -1718,7 +2446,19 @@
     }
 
     // Initialization & Rendering & Input Handling
-    function init() {
+    async function init() {
+        // Initialize GamePack system first
+        try {
+            await GamePackLoader.initialize();
+            console.log("GamePack system initialized successfully");
+            
+            // Apply game pack data to existing systems
+            applyGamePackData();
+        } catch (error) {
+            console.error("Failed to initialize GamePack system:", error);
+            console.log("Continuing with default data...");
+        }
+        
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x88ccff);
 
@@ -2167,6 +2907,119 @@
     loadSavedWorldPromise.then(() => {
         init();
     });
+    
+    // Expose GamePack utilities to global scope for debugging
+    window.GamePackLoader = GamePackLoader;
+    window.GamePackUtils = GamePackUtils;
+    window.WATCHER = WATCHER;
+    
+    // Console commands for game pack management
+    window.gamePackCommands = {
+        // List all loaded packs
+        listPacks() {
+            console.log("Loaded Game Packs:", GamePackLoader.getPackNames());
+            return GamePackLoader.getPackInfo();
+        },
+        
+        // Show detailed pack info
+        showPackInfo(packName = null) {
+            if (packName) {
+                const packData = GamePackLoader.getPackData(packName);
+                if (packData) {
+                    console.log(`=== ${packName} ===`);
+                    console.log("Path:", packData.basePath);
+                    console.log("Blocks:", Object.keys(packData.blocks));
+                    console.log("Biomes:", Object.keys(packData.biomes));
+                    console.log("Structures:", Object.keys(packData.structures));
+                    console.log("Config:", packData.config);
+                    return packData;
+                } else {
+                    console.log(`Pack "${packName}" not found`);
+                    return null;
+                }
+            } else {
+                return GamePackUtils.debugPackContents();
+            }
+        },
+        
+        // Reload a specific pack
+        async reloadPack(packName) {
+            try {
+                console.log(`Reloading pack: ${packName}`);
+                const result = await GamePackLoader.reloadPack(packName);
+                applyGamePackData();
+                console.log(`Successfully reloaded: ${packName}`);
+                return result;
+            } catch (error) {
+                console.error(`Failed to reload pack "${packName}":`, error);
+                return null;
+            }
+        },
+        
+        // Add a new pack to the watcher
+        async addPack(packName) {
+            if (!WATCHER.gamePacks.includes(packName)) {
+                WATCHER.gamePacks.push(packName);
+                try {
+                    const result = await GamePackLoader.loadGamePack(packName);
+                    applyGamePackData();
+                    console.log(`Successfully added pack: ${packName}`);
+                    return result;
+                } catch (error) {
+                    console.error(`Failed to add pack "${packName}":`, error);
+                    // Remove from watcher if loading failed
+                    const index = WATCHER.gamePacks.indexOf(packName);
+                    if (index > -1) {
+                        WATCHER.gamePacks.splice(index, 1);
+                    }
+                    return null;
+                }
+            } else {
+                console.log(`Pack "${packName}" is already active`);
+                return GamePackLoader.getPackData(packName);
+            }
+        },
+        
+        // Remove a pack from the watcher (except **Default**)
+        removePack(packName) {
+            if (packName === "**Default**") {
+                console.error("Cannot remove the **Default** pack");
+                return false;
+            }
+            
+            const index = WATCHER.gamePacks.indexOf(packName);
+            if (index > -1) {
+                WATCHER.gamePacks.splice(index, 1);
+                GamePackLoader.loadedPacks.delete(packName);
+                console.log(`Removed pack: ${packName}`);
+                applyGamePackData(); // Reapply remaining packs
+                return true;
+            } else {
+                console.log(`Pack "${packName}" not found in watcher`);
+                return false;
+            }
+        },
+        
+        // Show merged data
+        showMergedData(dataType = 'all') {
+            if (dataType === 'all') {
+                console.log("Blocks:", GamePackLoader.getMergedData('blocks'));
+                console.log("Biomes:", GamePackLoader.getMergedData('biomes'));
+                console.log("Structures:", GamePackLoader.getMergedData('structures'));
+            } else {
+                console.log(`${dataType}:`, GamePackLoader.getMergedData(dataType));
+            }
+        }
+    };
+    
+    // Log console commands info
+    console.log("Game Pack Console Commands Available:");
+    console.log("- gamePackCommands.listPacks() - List all loaded packs");
+    console.log("- gamePackCommands.showPackInfo(packName) - Show detailed pack info");
+    console.log("- gamePackCommands.reloadPack(packName) - Reload a specific pack");
+    console.log("- gamePackCommands.addPack(packName) - Add and load a new pack");
+    console.log("- gamePackCommands.removePack(packName) - Remove a pack");
+    console.log("- gamePackCommands.showMergedData(type) - Show merged data");
     </script>
 </body>
 </html>

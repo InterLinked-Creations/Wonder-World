@@ -1,0 +1,907 @@
+{
+    "biomes": {
+        "plains": {
+            "name": "Plains",
+            "temperature": 72,
+            "moisture": 0.5,
+            "transition": "Auto",
+            "category": "grassland",
+            "rarity": 85,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "3-6" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 1.2 },
+                { "type": "house", "frequency": 0.015 }
+            ],
+            
+            "baseHeight": 65,
+            "heightVariation": 8,
+            "heightAmplitude": 1.0,
+            "terrainRoughness": 0.3,
+            "slopeIntensity": 0.4,
+            
+            "plateauChance": 0.1,
+            "valleyDepth": 2,
+            "ridgeHeight": 4,
+            "erosionFactor": 0.2,
+            "sedimentationRate": 0.3,
+            "weatheringRate": 0.25,
+            "upliftForce": 0.1,
+            
+            "primaryNoiseScale": 0.02,
+            "secondaryNoiseScale": 0.08,
+            "detailNoiseScale": 0.2,
+            "noiseOctaves": 4,
+            "persistance": 0.5,
+            "lacunarity": 2.0,
+            "domainWarpStrength": 0.3,
+            
+            "hillDensity": 0.3,
+            "craterChance": 0.02,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.1,
+            "lakeGeneration": 0.05,
+            "springFormation": 0.03,
+            
+            "rockOutcrops": 0.1,
+            "boulderFields": 0.05,
+            "terraceFormation": false,
+            "deltaFormation": false,
+            "screeSlopes": 0.05,
+            "naturalArches": 0.01,
+            
+            "rootErosion": 0.1,
+            "vegetationStabilization": 0.2,
+            "biomass": 0.6,
+            "treeDensityEffect": 0.15,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.1,
+            "windErosion": 0.15,
+            "rainErosion": 0.2,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 1.8,
+            "harmonicDistortion": 0.1,
+            "voronoiInfluence": 0.05,
+            "perlinWarp": 0.2,
+            "simplexBlend": 0.3,
+            
+            "edges": {
+                "baseHeight": 62,
+                "heightVariation": 12,
+                "size": 0.8,
+                "layers": [
+                    { "type": "dirt", "number": "2-4" }
+                ],
+                "blend": 12
+            }
+        },
+        
+        "desert": {
+            "name": "Desert",
+            "temperature": 128,
+            "moisture": 0.0,
+            "transition": "Gentle",
+            "category": "desert",
+            "rarity": 40,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "sand", "number": "8-15" }
+            ],
+            "structures": [],
+            
+            "baseHeight": 62,
+            "heightVariation": 18,
+            "heightAmplitude": 1.2,
+            "terrainRoughness": 0.6,
+            "slopeIntensity": 0.3,
+            
+            "plateauChance": 0.25,
+            "valleyDepth": 8,
+            "ridgeHeight": 12,
+            "erosionFactor": 0.8,
+            "sedimentationRate": 0.7,
+            "weatheringRate": 0.9,
+            "upliftForce": 0.05,
+            
+            "primaryNoiseScale": 0.015,
+            "secondaryNoiseScale": 0.06,
+            "detailNoiseScale": 0.25,
+            "noiseOctaves": 6,
+            "persistance": 0.6,
+            "lacunarity": 2.2,
+            "domainWarpStrength": 0.8,
+            
+            "hillDensity": 0.4,
+            "craterChance": 0.08,
+            "mesaFormations": true,
+            "canyonCarving": true,
+            "riverCarving": 0.02,
+            "lakeGeneration": 0.01,
+            "springFormation": 0.005,
+            
+            "rockOutcrops": 0.3,
+            "boulderFields": 0.2,
+            "terraceFormation": true,
+            "deltaFormation": false,
+            "screeSlopes": 0.25,
+            "naturalArches": 0.08,
+            
+            "rootErosion": 0.02,
+            "vegetationStabilization": 0.05,
+            "biomass": 0.1,
+            "treeDensityEffect": 0.02,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.6,
+            "windErosion": 0.8,
+            "rainErosion": 0.05,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 2.1,
+            "harmonicDistortion": 0.4,
+            "voronoiInfluence": 0.3,
+            "perlinWarp": 0.5,
+            "simplexBlend": 0.2,
+            
+            "edges": {
+                "baseHeight": 65,
+                "heightVariation": 12,
+                "size": 0.8,
+                "layers": [
+                    { "type": "sand", "number": "5-10" },
+                    { "type": "dirt", "number": "1-3" }
+                ],
+                "blend": 20
+            }
+        },
+        
+        "tundra": {
+            "name": "Tundra",
+            "temperature": 13,
+            "moisture": 0.7,
+            "transition": "Auto",
+            "category": "cold",
+            "rarity": 30,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "snow", "number": "2-4" },
+                { "type": "dirt", "number": "3-6" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 0.2 }
+            ],
+            
+            "baseHeight": 68,
+            "heightVariation": 12,
+            "heightAmplitude": 0.8,
+            "terrainRoughness": 0.4,
+            "slopeIntensity": 0.2,
+            
+            "plateauChance": 0.15,
+            "valleyDepth": 3,
+            "ridgeHeight": 6,
+            "erosionFactor": 0.1,
+            "sedimentationRate": 0.1,
+            "weatheringRate": 0.05,
+            "upliftForce": 0.02,
+            
+            "primaryNoiseScale": 0.025,
+            "secondaryNoiseScale": 0.1,
+            "detailNoiseScale": 0.15,
+            "noiseOctaves": 3,
+            "persistance": 0.4,
+            "lacunarity": 1.8,
+            "domainWarpStrength": 0.2,
+            
+            "hillDensity": 0.2,
+            "craterChance": 0.01,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.05,
+            "lakeGeneration": 0.15,
+            "springFormation": 0.08,
+            
+            "rockOutcrops": 0.2,
+            "boulderFields": 0.3,
+            "terraceFormation": false,
+            "deltaFormation": true,
+            "screeSlopes": 0.1,
+            "naturalArches": 0.02,
+            
+            "rootErosion": 0.05,
+            "vegetationStabilization": 0.1,
+            "biomass": 0.3,
+            "treeDensityEffect": 0.08,
+            
+            "frostHeave": 0.8,
+            "thermalExpansion": 0.02,
+            "windErosion": 0.4,
+            "rainErosion": 0.1,
+            "snowLoad": 0.6,
+            
+            "fractalDimension": 1.6,
+            "harmonicDistortion": 0.05,
+            "voronoiInfluence": 0.1,
+            "perlinWarp": 0.15,
+            "simplexBlend": 0.4,
+            
+            "edges": {
+                "baseHeight": 65,
+                "heightVariation": 15,
+                "size": 0.7,
+                "layers": [
+                    { "type": "dirt", "number": "4-8" }
+                ],
+                "blend": 16
+            }
+        },
+        
+        "forest": {
+            "name": "Forest",
+            "temperature": 68,
+            "moisture": 0.8,
+            "transition": "Auto",
+            "category": "forest",
+            "rarity": 65,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "5-9" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 3.5 }
+            ],
+            
+            "baseHeight": 75,
+            "heightVariation": 20,
+            "heightAmplitude": 1.1,
+            "terrainRoughness": 0.5,
+            "slopeIntensity": 0.6,
+            
+            "plateauChance": 0.05,
+            "valleyDepth": 5,
+            "ridgeHeight": 8,
+            "erosionFactor": 0.15,
+            "sedimentationRate": 0.4,
+            "weatheringRate": 0.3,
+            "upliftForce": 0.15,
+            
+            "primaryNoiseScale": 0.018,
+            "secondaryNoiseScale": 0.07,
+            "detailNoiseScale": 0.3,
+            "noiseOctaves": 5,
+            "persistance": 0.55,
+            "lacunarity": 2.1,
+            "domainWarpStrength": 0.4,
+            
+            "hillDensity": 0.5,
+            "craterChance": 0.01,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.2,
+            "lakeGeneration": 0.08,
+            "springFormation": 0.1,
+            
+            "rockOutcrops": 0.15,
+            "boulderFields": 0.1,
+            "terraceFormation": false,
+            "deltaFormation": true,
+            "screeSlopes": 0.08,
+            "naturalArches": 0.03,
+            
+            "rootErosion": 0.25,
+            "vegetationStabilization": 0.8,
+            "biomass": 0.9,
+            "treeDensityEffect": 0.6,
+            
+            "frostHeave": 0.1,
+            "thermalExpansion": 0.08,
+            "windErosion": 0.05,
+            "rainErosion": 0.3,
+            "snowLoad": 0.2,
+            
+            "fractalDimension": 1.9,
+            "harmonicDistortion": 0.2,
+            "voronoiInfluence": 0.08,
+            "perlinWarp": 0.3,
+            "simplexBlend": 0.5,
+            
+            "edges": {
+                "baseHeight": 72,
+                "heightVariation": 16,
+                "size": 0.7,
+                "layers": [
+                    { "type": "dirt", "number": "3-6" }
+                ],
+                "blend": 14
+            }
+        },
+        
+        "mountains": {
+            "name": "Mountains",
+            "temperature": 32,
+            "moisture": 0.4,
+            "transition": "Steep",
+            "category": "mountain",
+            "rarity": 25,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "1-3" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 0.1 }
+            ],
+            
+            "baseHeight": 140,
+            "heightVariation": 80,
+            "heightAmplitude": 2.5,
+            "terrainRoughness": 0.9,
+            "slopeIntensity": 0.9,
+            
+            "plateauChance": 0.3,
+            "valleyDepth": 25,
+            "ridgeHeight": 40,
+            "erosionFactor": 0.3,
+            "sedimentationRate": 0.1,
+            "weatheringRate": 0.6,
+            "upliftForce": 0.8,
+            
+            "primaryNoiseScale": 0.008,
+            "secondaryNoiseScale": 0.04,
+            "detailNoiseScale": 0.2,
+            "noiseOctaves": 8,
+            "persistance": 0.7,
+            "lacunarity": 2.5,
+            "domainWarpStrength": 0.6,
+            
+            "hillDensity": 0.8,
+            "craterChance": 0.05,
+            "mesaFormations": true,
+            "canyonCarving": true,
+            "riverCarving": 0.15,
+            "lakeGeneration": 0.03,
+            "springFormation": 0.02,
+            
+            "rockOutcrops": 0.8,
+            "boulderFields": 0.6,
+            "terraceFormation": true,
+            "deltaFormation": false,
+            "screeSlopes": 0.7,
+            "naturalArches": 0.15,
+            
+            "rootErosion": 0.05,
+            "vegetationStabilization": 0.1,
+            "biomass": 0.2,
+            "treeDensityEffect": 0.05,
+            
+            "frostHeave": 0.6,
+            "thermalExpansion": 0.15,
+            "windErosion": 0.7,
+            "rainErosion": 0.4,
+            "snowLoad": 0.8,
+            
+            "fractalDimension": 2.3,
+            "harmonicDistortion": 0.6,
+            "voronoiInfluence": 0.4,
+            "perlinWarp": 0.7,
+            "simplexBlend": 0.3,
+            
+            "edges": {
+                "baseHeight": 110,
+                "heightVariation": 50,
+                "size": 0.6,
+                "layers": [
+                    { "type": "dirt", "number": "2-5" }
+                ],
+                "blend": 25
+            }
+        },
+        
+        "ocean": {
+            "name": "Ocean",
+            "temperature": 58,
+            "moisture": 1.0,
+            "transition": "Gentle",
+            "category": "water",
+            "rarity": 70,
+            "isUniversalBiome": true,
+            
+            "fill": { "type": "water", "height": 50 },
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "sand", "number": "3-8" }
+            ],
+            "structures": [],
+            
+            "baseHeight": 20,
+            "heightVariation": 15,
+            "heightAmplitude": 0.6,
+            "terrainRoughness": 0.2,
+            "slopeIntensity": 0.1,
+            
+            "plateauChance": 0.02,
+            "valleyDepth": 12,
+            "ridgeHeight": 3,
+            "erosionFactor": 0.05,
+            "sedimentationRate": 0.8,
+            "weatheringRate": 0.1,
+            "upliftForce": 0.01,
+            
+            "primaryNoiseScale": 0.03,
+            "secondaryNoiseScale": 0.12,
+            "detailNoiseScale": 0.4,
+            "noiseOctaves": 4,
+            "persistance": 0.3,
+            "lacunarity": 1.6,
+            "domainWarpStrength": 0.1,
+            
+            "hillDensity": 0.1,
+            "craterChance": 0.0,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.0,
+            "lakeGeneration": 0.0,
+            "springFormation": 0.0,
+            
+            "rockOutcrops": 0.05,
+            "boulderFields": 0.02,
+            "terraceFormation": false,
+            "deltaFormation": true,
+            "screeSlopes": 0.02,
+            "naturalArches": 0.01,
+            
+            "rootErosion": 0.0,
+            "vegetationStabilization": 0.0,
+            "biomass": 0.1,
+            "treeDensityEffect": 0.0,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.05,
+            "windErosion": 0.1,
+            "rainErosion": 0.05,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 1.4,
+            "harmonicDistortion": 0.05,
+            "voronoiInfluence": 0.02,
+            "perlinWarp": 0.1,
+            "simplexBlend": 0.6,
+            
+            "edges": {
+                "baseHeight": 35,
+                "heightVariation": 8,
+                "size": 1.0,
+                "layers": [
+                    { "type": "sand", "number": "6-12" }
+                ],
+                "blend": 15
+            }
+        },
+        
+        "swamp": {
+            "name": "Swamp",
+            "temperature": 75,
+            "moisture": 0.95,
+            "transition": "Gentle",
+            "category": "swamp",
+            "rarity": 25,
+            "isUniversalBiome": false,
+            "compatibleBiomes": ["forest", "ocean"],
+            
+            "fill": { "type": "water", "height": 62 },
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "6-12" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 2.1 }
+            ],
+            
+            "baseHeight": 58,
+            "heightVariation": 6,
+            "heightAmplitude": 0.4,
+            "terrainRoughness": 0.3,
+            "slopeIntensity": 0.2,
+            
+            "plateauChance": 0.0,
+            "valleyDepth": 1,
+            "ridgeHeight": 2,
+            "erosionFactor": 0.4,
+            "sedimentationRate": 0.9,
+            "weatheringRate": 0.4,
+            "upliftForce": 0.05,
+            
+            "primaryNoiseScale": 0.06,
+            "secondaryNoiseScale": 0.2,
+            "detailNoiseScale": 0.5,
+            "noiseOctaves": 3,
+            "persistance": 0.4,
+            "lacunarity": 1.5,
+            "domainWarpStrength": 0.2,
+            
+            "hillDensity": 0.1,
+            "craterChance": 0.0,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.3,
+            "lakeGeneration": 0.4,
+            "springFormation": 0.2,
+            
+            "rockOutcrops": 0.02,
+            "boulderFields": 0.01,
+            "terraceFormation": false,
+            "deltaFormation": true,
+            "screeSlopes": 0.01,
+            "naturalArches": 0.0,
+            
+            "rootErosion": 0.3,
+            "vegetationStabilization": 0.6,
+            "biomass": 0.85,
+            "treeDensityEffect": 0.4,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.1,
+            "windErosion": 0.02,
+            "rainErosion": 0.2,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 1.5,
+            "harmonicDistortion": 0.1,
+            "voronoiInfluence": 0.15,
+            "perlinWarp": 0.2,
+            "simplexBlend": 0.4,
+            
+            "edges": {
+                "baseHeight": 65,
+                "heightVariation": 10,
+                "size": 0.6,
+                "layers": [
+                    { "type": "dirt", "number": "4-8" }
+                ],
+                "blend": 14
+            }
+        },
+        
+        "savanna": {
+            "name": "Savanna",
+            "temperature": 95,
+            "moisture": 0.3,
+            "transition": "Auto",
+            "category": "grassland",
+            "rarity": 45,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "2-4" },
+                { "type": "sand", "number": "1-2" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 0.3 }
+            ],
+            
+            "baseHeight": 68,
+            "heightVariation": 15,
+            "heightAmplitude": 1.1,
+            "terrainRoughness": 0.4,
+            "slopeIntensity": 0.5,
+            
+            "plateauChance": 0.2,
+            "valleyDepth": 4,
+            "ridgeHeight": 6,
+            "erosionFactor": 0.4,
+            "sedimentationRate": 0.3,
+            "weatheringRate": 0.5,
+            "upliftForce": 0.1,
+            
+            "primaryNoiseScale": 0.022,
+            "secondaryNoiseScale": 0.09,
+            "detailNoiseScale": 0.25,
+            "noiseOctaves": 5,
+            "persistance": 0.6,
+            "lacunarity": 2.0,
+            "domainWarpStrength": 0.4,
+            
+            "hillDensity": 0.4,
+            "craterChance": 0.03,
+            "mesaFormations": true,
+            "canyonCarving": false,
+            "riverCarving": 0.08,
+            "lakeGeneration": 0.02,
+            "springFormation": 0.01,
+            
+            "rockOutcrops": 0.2,
+            "boulderFields": 0.15,
+            "terraceFormation": true,
+            "deltaFormation": false,
+            "screeSlopes": 0.1,
+            "naturalArches": 0.05,
+            
+            "rootErosion": 0.08,
+            "vegetationStabilization": 0.3,
+            "biomass": 0.4,
+            "treeDensityEffect": 0.1,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.4,
+            "windErosion": 0.5,
+            "rainErosion": 0.15,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 1.9,
+            "harmonicDistortion": 0.3,
+            "voronoiInfluence": 0.2,
+            "perlinWarp": 0.35,
+            "simplexBlend": 0.3,
+            
+            "edges": {
+                "baseHeight": 65,
+                "heightVariation": 18,
+                "size": 0.6,
+                "layers": [
+                    { "type": "sand", "number": "2-5" }
+                ],
+                "blend": 15
+            }
+        },
+        
+        "meadow": {
+            "name": "Meadow",
+            "temperature": 65,
+            "moisture": 0.6,
+            "transition": "Gentle",
+            "category": "grassland",
+            "rarity": 35,
+            "isUniversalBiome": false,
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "4-8" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 0.8 }
+            ],
+            
+            "baseHeight": 72,
+            "heightVariation": 12,
+            "heightAmplitude": 0.9,
+            "terrainRoughness": 0.2,
+            "slopeIntensity": 0.3,
+            
+            "plateauChance": 0.05,
+            "valleyDepth": 2,
+            "ridgeHeight": 3,
+            "erosionFactor": 0.15,
+            "sedimentationRate": 0.4,
+            "weatheringRate": 0.2,
+            "upliftForce": 0.08,
+            
+            "primaryNoiseScale": 0.03,
+            "secondaryNoiseScale": 0.12,
+            "detailNoiseScale": 0.3,
+            "noiseOctaves": 4,
+            "persistance": 0.45,
+            "lacunarity": 1.8,
+            "domainWarpStrength": 0.25,
+            
+            "hillDensity": 0.25,
+            "craterChance": 0.01,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.12,
+            "lakeGeneration": 0.08,
+            "springFormation": 0.06,
+            
+            "rockOutcrops": 0.05,
+            "boulderFields": 0.03,
+            "terraceFormation": false,
+            "deltaFormation": true,
+            "screeSlopes": 0.02,
+            "naturalArches": 0.01,
+            
+            "rootErosion": 0.12,
+            "vegetationStabilization": 0.5,
+            "biomass": 0.7,
+            "treeDensityEffect": 0.25,
+            
+            "frostHeave": 0.05,
+            "thermalExpansion": 0.08,
+            "windErosion": 0.1,
+            "rainErosion": 0.25,
+            "snowLoad": 0.1,
+            
+            "fractalDimension": 1.6,
+            "harmonicDistortion": 0.08,
+            "voronoiInfluence": 0.05,
+            "perlinWarp": 0.2,
+            "simplexBlend": 0.4,
+            
+            "edges": {
+                "baseHeight": 70,
+                "heightVariation": 8,
+                "size": 0.5,
+                "blend": 10
+            }
+        },
+        
+        "mesa": {
+            "name": "Mesa",
+            "temperature": 115,
+            "moisture": 0.1,
+            "transition": "None",
+            "category": "desert",
+            "rarity": 15,
+            "isUniversalBiome": false,
+            "blockedBiomes": ["ocean", "swamp", "tundra"],
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "sand", "number": "2-4" },
+                { "type": "dirt", "number": "1-2" }
+            ],
+            "structures": [],
+            
+            "baseHeight": 115,
+            "heightVariation": 8,
+            "heightAmplitude": 2.0,
+            "terrainRoughness": 0.1,
+            "slopeIntensity": 0.9,
+            
+            "plateauChance": 0.95,
+            "valleyDepth": 35,
+            "ridgeHeight": 2,
+            "erosionFactor": 0.9,
+            "sedimentationRate": 0.2,
+            "weatheringRate": 0.8,
+            "upliftForce": 0.3,
+            
+            "primaryNoiseScale": 0.06,
+            "secondaryNoiseScale": 0.2,
+            "detailNoiseScale": 0.5,
+            "noiseOctaves": 6,
+            "persistance": 0.7,
+            "lacunarity": 2.8,
+            "domainWarpStrength": 0.1,
+            
+            "hillDensity": 0.1,
+            "craterChance": 0.02,
+            "mesaFormations": true,
+            "canyonCarving": true,
+            "riverCarving": 0.05,
+            "lakeGeneration": 0.0,
+            "springFormation": 0.0,
+            
+            "rockOutcrops": 0.9,
+            "boulderFields": 0.4,
+            "terraceFormation": true,
+            "deltaFormation": false,
+            "screeSlopes": 0.8,
+            "naturalArches": 0.3,
+            
+            "rootErosion": 0.01,
+            "vegetationStabilization": 0.02,
+            "biomass": 0.05,
+            "treeDensityEffect": 0.0,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.8,
+            "windErosion": 0.9,
+            "rainErosion": 0.02,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 2.4,
+            "harmonicDistortion": 0.1,
+            "voronoiInfluence": 0.8,
+            "perlinWarp": 0.05,
+            "simplexBlend": 0.1,
+            
+            "edges": {
+                "baseHeight": 85,
+                "heightVariation": 25,
+                "size": 0.3,
+                "layers": [
+                    { "type": "stone", "number": "1-2" },
+                    { "type": "dirt", "number": "3-6" }
+                ],
+                "blend": 5
+            }
+        },
+        
+        "jungle": {
+            "name": "Jungle",
+            "temperature": 88,
+            "moisture": 0.9,
+            "transition": "Auto",
+            "category": "forest",
+            "rarity": 20,
+            "isUniversalBiome": false,
+            "compatibleBiomes": ["forest", "swamp"],
+            
+            "defaultLayer": "stone",
+            "layers": [
+                { "type": "dirt", "number": "8-15" }
+            ],
+            "structures": [
+                { "type": "tree", "frequency": 6.0 }
+            ],
+            
+            "baseHeight": 78,
+            "heightVariation": 25,
+            "heightAmplitude": 1.3,
+            "terrainRoughness": 0.7,
+            "slopeIntensity": 0.7,
+            
+            "plateauChance": 0.1,
+            "valleyDepth": 8,
+            "ridgeHeight": 12,
+            "erosionFactor": 0.6,
+            "sedimentationRate": 0.8,
+            "weatheringRate": 0.9,
+            "upliftForce": 0.2,
+            
+            "primaryNoiseScale": 0.015,
+            "secondaryNoiseScale": 0.06,
+            "detailNoiseScale": 0.35,
+            "noiseOctaves": 6,
+            "persistance": 0.65,
+            "lacunarity": 2.3,
+            "domainWarpStrength": 0.6,
+            
+            "hillDensity": 0.6,
+            "craterChance": 0.0,
+            "mesaFormations": false,
+            "canyonCarving": false,
+            "riverCarving": 0.4,
+            "lakeGeneration": 0.15,
+            "springFormation": 0.25,
+            
+            "rockOutcrops": 0.1,
+            "boulderFields": 0.05,
+            "terraceFormation": false,
+            "deltaFormation": true,
+            "screeSlopes": 0.05,
+            "naturalArches": 0.02,
+            
+            "rootErosion": 0.5,
+            "vegetationStabilization": 0.95,
+            "biomass": 1.0,
+            "treeDensityEffect": 0.8,
+            
+            "frostHeave": 0.0,
+            "thermalExpansion": 0.1,
+            "windErosion": 0.02,
+            "rainErosion": 0.8,
+            "snowLoad": 0.0,
+            
+            "fractalDimension": 2.0,
+            "harmonicDistortion": 0.4,
+            "voronoiInfluence": 0.1,
+            "perlinWarp": 0.5,
+            "simplexBlend": 0.6,
+            
+            "edges": {
+                "baseHeight": 75,
+                "heightVariation": 20,
+                "size": 0.8,
+                "layers": [
+                    { "type": "dirt", "number": "5-10" }
+                ],
+                "blend": 18
+            }
+        }
+    }
+}

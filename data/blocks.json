@@ -1,0 +1,127 @@
+{
+    "blocks": {
+        "stone": {
+            "id": 1,
+            "name": "Stone",
+            "type": "solid",
+            "hardness": 1.5,
+            "resistance": 6.0,
+            "tool": "pickaxe",
+            "material": "rock",
+            "stackable": true,
+            "maxStack": 64,
+            "properties": {
+                "color": "blocks/Stone.png",
+                "transparency": 1,
+                "sideRendering": "one"
+            }
+        },
+        "dirt": {
+            "id": 2,
+            "name": "Grass Block",
+            "type": "solid",
+            "hardness": 0.6,
+            "resistance": 0.6,
+            "tool": "shovel",
+            "material": "earth",
+            "stackable": true,
+            "maxStack": 64,
+            "properties": {
+                "color": "blocks/Grass_Side.png",
+                "faces": {
+                    "top": "blocks/Grass.png",
+                    "bottom": "blocks/Dirt.png"
+                },
+                "transparency": 1,
+                "sideRendering": "one"
+            }
+        },
+        "wood": {
+            "id": 3,
+            "name": "Oak Log",
+            "type": "solid",
+            "hardness": 2.0,
+            "resistance": 2.0,
+            "tool": "axe",
+            "material": "wood",
+            "stackable": true,
+            "maxStack": 64,
+            "properties": {
+                "color": "blocks/Log_Side.png",
+                "faces": {
+                    "top": "blocks/Log_Top.png",
+                    "bottom": "blocks/Log_Top.png"
+                },
+                "transparency": 1,
+                "sideRendering": "one"
+            }
+        },
+        "leaves": {
+            "id": 4,
+            "name": "Oak Leaves",
+            "type": "solid",
+            "hardness": 0.2,
+            "resistance": 0.2,
+            "tool": "shears",
+            "material": "plant",
+            "stackable": true,
+            "maxStack": 64,
+            "properties": {
+                "color": "#88cc88",
+                "transparency": 1,
+                "sideRendering": "one"
+            }
+        },
+        "sand": {
+            "id": 5,
+            "name": "Sand",
+            "type": "solid",
+            "hardness": 0.5,
+            "resistance": 0.5,
+            "tool": "shovel",
+            "material": "sand",
+            "stackable": true,
+            "maxStack": 64,
+            "gravity": true,
+            "properties": {
+                "color": "blocks/Sand.png",
+                "transparency": 1,
+                "sideRendering": "one"
+            }
+        },
+        "snow": {
+            "id": 6,
+            "name": "Snow Block",
+            "type": "solid",
+            "hardness": 0.1,
+            "resistance": 0.5,
+            "tool": "shovel",
+            "material": "snow",
+            "stackable": true,
+            "maxStack": 64,
+            "properties": {
+                "color": "#ffffff",
+                "transparency": 1,
+                "sideRendering": "one"
+            }
+        },
+        "water": {
+            "id": 7,
+            "name": "Water",
+            "type": "fluid",
+            "hardness": 0.0,
+            "resistance": 100.0,
+            "tool": "bucket",
+            "material": "water",
+            "stackable": false,
+            "maxStack": 1,
+            "properties": {
+                "color": "blocks/Water2.png",
+                "transparency": 0.7,
+                "sideRendering": "both",
+                "alphaTest": 0.1,
+                "seeThrough": true
+            }
+        }
+    }
+}
