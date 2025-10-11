@@ -3,6 +3,7 @@
 
 let CHUNK_SIZE, WORLD_HEIGHT, BLOCK_TYPES, BIOMES, worldSeed, StructureGenerators;
 let blockColors; // Will be populated from main thread
+let biomeScale; // Will be populated from main thread
 
 // Advanced terrain system constants (mirrored from main thread)
 let BIOME_ADJACENCY, GEOLOGICAL_FORMATIONS, TERRAIN_BOUNDS, NOISE_CONFIG;
@@ -12,6 +13,12 @@ let AdvancedNoiseGenerator;
 const chunkStorage = new Map();
 const neighborChunks = new Map(); // Store neighboring chunks for proper culling
 const biomeStorage = new Map(); // Store computed biomes for adjacency checking
+
+// Performance optimization: Cache noise calculations
+const noiseCache = new Map();
+const NOISE_CACHE_SIZE = 10000; // Limit cache size to prevent memory issues
+let noiseCacheHits = 0;
+let noiseCacheMisses = 0;
 
 // Advanced terrain generation helper functions (worker versions)
 function areBiomesCompatible(biome1, biome2) {
@@ -40,56 +47,294 @@ function calculateSophisticatedHeight(x, z, biomeName, noiseGen, neighborBiomes)
     
     const biome = BIOMES[biomeName];
     
+    // Extract biome properties with defaults
+    const heightAmplitude = biome.heightAmplitude !== undefined ? biome.heightAmplitude : 1.0;
+    const terrainRoughness = biome.terrainRoughness !== undefined ? biome.terrainRoughness : 0.5;
+    const slopeIntensity = biome.slopeIntensity !== undefined ? biome.slopeIntensity : 0.5;
+    
+    const plateauChance = biome.plateauChance !== undefined ? biome.plateauChance : 0.1;
+    const valleyDepth = biome.valleyDepth !== undefined ? biome.valleyDepth : 5;
+    const ridgeHeight = biome.ridgeHeight !== undefined ? biome.ridgeHeight : 8;
+    const erosionFactor = biome.erosionFactor !== undefined ? biome.erosionFactor : 0.3;
+    const sedimentationRate = biome.sedimentationRate !== undefined ? biome.sedimentationRate : 0.3;
+    const weatheringRate = biome.weatheringRate !== undefined ? biome.weatheringRate : 0.3;
+    const upliftForce = biome.upliftForce !== undefined ? biome.upliftForce : 0.1;
+    
+    const primaryNoiseScale = biome.primaryNoiseScale !== undefined ? biome.primaryNoiseScale : 0.02;
+    const secondaryNoiseScale = biome.secondaryNoiseScale !== undefined ? biome.secondaryNoiseScale : 0.08;
+    const detailNoiseScale = biome.detailNoiseScale !== undefined ? biome.detailNoiseScale : 0.2;
+    const noiseOctaves = biome.noiseOctaves !== undefined ? biome.noiseOctaves : 4;
+    const persistance = biome.persistance !== undefined ? biome.persistance : 0.5;
+    const lacunarity = biome.lacunarity !== undefined ? biome.lacunarity : 2.0;
+    const domainWarpStrength = biome.domainWarpStrength !== undefined ? biome.domainWarpStrength : 0.3;
+    
+    const hillDensity = biome.hillDensity !== undefined ? biome.hillDensity : 0.3;
+    const craterChance = biome.craterChance !== undefined ? biome.craterChance : 0.0;
+    const mesaFormations = biome.mesaFormations !== undefined ? biome.mesaFormations : false;
+    const canyonCarving = biome.canyonCarving !== undefined ? biome.canyonCarving : false;
+    const riverCarving = biome.riverCarving !== undefined ? biome.riverCarving : 0.1;
+    const lakeGeneration = biome.lakeGeneration !== undefined ? biome.lakeGeneration : 0.05;
+    
+    const rockOutcrops = biome.rockOutcrops !== undefined ? biome.rockOutcrops : 0.1;
+    const boulderFields = biome.boulderFields !== undefined ? biome.boulderFields : 0.05;
+    const terraceFormation = biome.terraceFormation !== undefined ? biome.terraceFormation : false;
+    const screeSlopes = biome.screeSlopes !== undefined ? biome.screeSlopes : 0.05;
+    const naturalArches = biome.naturalArches !== undefined ? biome.naturalArches : 0.01;
+    
+    const frostHeave = biome.frostHeave !== undefined ? biome.frostHeave : 0.0;
+    const thermalExpansion = biome.thermalExpansion !== undefined ? biome.thermalExpansion : 0.1;
+    const windErosion = biome.windErosion !== undefined ? biome.windErosion : 0.2;
+    const rainErosion = biome.rainErosion !== undefined ? biome.rainErosion : 0.2;
+    const snowLoad = biome.snowLoad !== undefined ? biome.snowLoad : 0.0;
+    
+    const fractalDimension = biome.fractalDimension !== undefined ? biome.fractalDimension : 1.8;
+    const harmonicDistortion = biome.harmonicDistortion !== undefined ? biome.harmonicDistortion : 0.1;
+    const voronoiInfluence = biome.voronoiInfluence !== undefined ? biome.voronoiInfluence : 0.05;
+    const perlinWarp = biome.perlinWarp !== undefined ? biome.perlinWarp : 0.2;
+    const simplexBlend = biome.simplexBlend !== undefined ? biome.simplexBlend : 0.3;
+    
     // Base continental elevation
     const continentalNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.continental);
     const regionalNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.regional);
     const continentalShape = continentalNoise * 0.7 + regionalNoise * 0.3;
-    let elevation = TERRAIN_BOUNDS.sea_level + continentalShape;
+    let elevation = TERRAIN_BOUNDS.sea_level + continentalShape * upliftForce * 100;
     elevation = Math.max(TERRAIN_BOUNDS.min_elevation, elevation);
     
-    // Apply geological formations if available
-    if (GEOLOGICAL_FORMATIONS) {
-        const formationNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.formation || { frequency: 0.005, amplitude: 20, octaves: 3 });
+    // Apply geological formations using biome-specific settings
+    if (biome.transition !== "None") {
+        const formationNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.formation || { frequency: primaryNoiseScale * 0.25, amplitude: 20, octaves: noiseOctaves });
         const formationStrength = Math.abs(formationNoise);
         
-        if (formationStrength > 0.7 && GEOLOGICAL_FORMATIONS.MESA) {
-            const mesa = GEOLOGICAL_FORMATIONS.MESA;
-            const plateauNoise = ridgedNoise(noiseGen, x, z, { frequency: 0.008, amplitude: 15, octaves: 2 });
-            elevation += plateauNoise * mesa.elevation_modifier;
-        } else if (formationStrength > 0.4 && GEOLOGICAL_FORMATIONS.RIDGE) {
-            const ridge = GEOLOGICAL_FORMATIONS.RIDGE;
-            const ridgeNoise = ridgedNoise(noiseGen, x, z, { frequency: 0.015, amplitude: 20, octaves: 3 });
-            elevation += ridgeNoise * ridge.elevation_modifier;
-        } else if (formationNoise < -0.4 && GEOLOGICAL_FORMATIONS.VALLEY) {
-            const valley = GEOLOGICAL_FORMATIONS.VALLEY;
-            const valleyDepth = Math.abs(formationNoise + 0.4) * 30;
-            elevation -= valleyDepth * valley.elevation_modifier;
+        // Mesa/Plateau formations
+        if (mesaFormations || (GEOLOGICAL_FORMATIONS && GEOLOGICAL_FORMATIONS.MESA && formationStrength > 0.7)) {
+            const plateauNoise = ridgedNoise(noiseGen, x, z, { frequency: primaryNoiseScale * 0.4, amplitude: ridgeHeight * 2, octaves: Math.max(2, noiseOctaves - 2) });
+            const plateauTest = noiseGen.noise(x * primaryNoiseScale * 0.3, 1000, z * primaryNoiseScale * 0.3);
+            if (Math.abs(plateauTest) < plateauChance) {
+                elevation += plateauNoise * heightAmplitude * (terraceFormation ? 1.5 : 1.0);
+            }
+        }
+        
+        // Ridge formations
+        if (formationStrength > 0.4 || hillDensity > 0.4) {
+            const ridgeNoise = ridgedNoise(noiseGen, x, z, { frequency: primaryNoiseScale * 0.75, amplitude: ridgeHeight, octaves: noiseOctaves });
+            elevation += ridgeNoise * heightAmplitude * hillDensity;
+        }
+        
+        // Valley/Canyon carving
+        if (canyonCarving || formationNoise < -0.4) {
+            const valleyNoise = Math.abs(formationNoise + 0.4) * valleyDepth * 6;
+            elevation -= valleyNoise * erosionFactor;
+        }
+        
+        // River carving
+        if (riverCarving > 0) {
+            const riverNoise = Math.abs(noiseGen.noise(x * primaryNoiseScale * 0.15, 2000, z * primaryNoiseScale * 0.15));
+            if (riverNoise < riverCarving * 0.5) {
+                const riverDepth = (riverCarving * 0.5 - riverNoise) * 40;
+                elevation -= riverDepth * erosionFactor;
+            }
         }
     }
     
-    // Local biome-specific terrain
-    const localNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.local);
-    const detailNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.detail);
-    const microNoise = multiOctaveNoise(noiseGen, x, z, NOISE_CONFIG.micro);
+    // Local biome-specific terrain with custom noise scales
+    const primaryNoise = multiOctaveNoiseCustom(noiseGen, x, z, {
+        frequency: primaryNoiseScale,
+        amplitude: biome.heightVariation * heightAmplitude,
+        octaves: noiseOctaves,
+        persistance: persistance,
+        lacunarity: lacunarity
+    });
     
-    // Combine local terrain features
-    let biomeModification = localNoise * biome.heightVariation * 0.6;
-    biomeModification += detailNoise * biome.heightVariation * 0.3;
-    biomeModification += microNoise * biome.heightVariation * 0.1;
+    const secondaryNoise = multiOctaveNoiseCustom(noiseGen, x, z, {
+        frequency: secondaryNoiseScale,
+        amplitude: biome.heightVariation * heightAmplitude * 0.5,
+        octaves: Math.max(2, noiseOctaves - 1),
+        persistance: persistance,
+        lacunarity: lacunarity
+    });
     
-    // Apply biome-specific terrain characteristics
-    if (biomeName.includes('mountain') || biomeName.includes('peaks')) {
-        const ridgedTerrain = ridgedNoise(noiseGen, x, z, { frequency: 0.02, amplitude: 30, octaves: 4 });
-        biomeModification += ridgedTerrain;
-    } else if (biomeName.includes('desert') || biomeName.includes('dunes')) {
-        const duneNoise = domainWarpedNoise(noiseGen, x, z, { frequency: 0.03, amplitude: 15, octaves: 3 }, 30);
-        biomeModification += duneNoise * 0.8;
-    } else if (biomeName.includes('ocean') || biomeName.includes('lake')) {
-        biomeModification *= 0.3;
+    const detailNoise = multiOctaveNoiseCustom(noiseGen, x, z, {
+        frequency: detailNoiseScale,
+        amplitude: biome.heightVariation * heightAmplitude * 0.25,
+        octaves: Math.max(1, noiseOctaves - 2),
+        persistance: persistance,
+        lacunarity: lacunarity
+    });
+    
+    // Apply domain warping
+    let warpedX = x;
+    let warpedZ = z;
+    if (domainWarpStrength > 0) {
+        const warpOffsetX = noiseGen.noise(x * primaryNoiseScale * 0.5, 5000, z * primaryNoiseScale * 0.5) * domainWarpStrength * 50;
+        const warpOffsetZ = noiseGen.noise(x * primaryNoiseScale * 0.5, 6000, z * primaryNoiseScale * 0.5) * domainWarpStrength * 50;
+        warpedX += warpOffsetX;
+        warpedZ += warpOffsetZ;
+    }
+    
+    // Combine terrain features with terrain roughness
+    let biomeModification = primaryNoise * (0.6 + terrainRoughness * 0.4);
+    biomeModification += secondaryNoise * (0.3 + terrainRoughness * 0.2);
+    biomeModification += detailNoise * (0.1 + terrainRoughness * 0.1);
+    
+    // Apply slope intensity
+    const slopeNoise = noiseGen.noise(warpedX * detailNoiseScale * 1.5, 3000, warpedZ * detailNoiseScale * 1.5);
+    biomeModification *= (1.0 + slopeNoise * slopeIntensity * 0.5);
+    
+    // Apply environmental effects
+    // Weathering smooths terrain
+    biomeModification *= (1.0 - weatheringRate * 0.3);
+    
+    // Wind erosion (directional)
+    if (windErosion > 0) {
+        const windDirection = noiseGen.noise(x * primaryNoiseScale * 0.1, 7000, z * primaryNoiseScale * 0.1);
+        biomeModification -= windDirection * windErosion * 2;
+    }
+    
+    // Rain erosion (general smoothing)
+    if (rainErosion > 0) {
+        biomeModification *= (1.0 - rainErosion * 0.2);
+    }
+    
+    // Frost heave (increases roughness in cold biomes)
+    if (frostHeave > 0) {
+        const frostNoise = noiseGen.noise(x * detailNoiseScale * 2, 8000, z * detailNoiseScale * 2);
+        biomeModification += frostNoise * frostHeave * 3;
+    }
+    
+    // Snow load (compresses terrain slightly)
+    if (snowLoad > 0) {
+        biomeModification -= snowLoad * 2;
+    }
+    
+    // Thermal expansion (adds micro-variations)
+    if (thermalExpansion > 0) {
+        const thermalNoise = noiseGen.noise(x * detailNoiseScale * 3, 9000, z * detailNoiseScale * 3);
+        biomeModification += thermalNoise * thermalExpansion * 1.5;
+    }
+    
+    // Special geological features
+    // Craters
+    if (craterChance > 0) {
+        const craterTest = noiseGen.noise(x * primaryNoiseScale * 0.2, 10000, z * primaryNoiseScale * 0.2);
+        if (Math.abs(craterTest) < craterChance * 0.1) {
+            const craterDepth = (craterChance * 0.1 - Math.abs(craterTest)) * 200;
+            biomeModification -= craterDepth;
+        }
+    }
+    
+    // Rock outcrops
+    if (rockOutcrops > 0) {
+        const outcropNoise = noiseGen.noise(x * secondaryNoiseScale * 1.5, 11000, z * secondaryNoiseScale * 1.5);
+        if (outcropNoise > (1.0 - rockOutcrops)) {
+            biomeModification += (outcropNoise - (1.0 - rockOutcrops)) * 15;
+        }
+    }
+    
+    // Boulder fields
+    if (boulderFields > 0) {
+        const boulderNoise = noiseGen.noise(x * detailNoiseScale * 2.5, 12000, z * detailNoiseScale * 2.5);
+        if (boulderNoise > (1.0 - boulderFields)) {
+            biomeModification += (boulderNoise - (1.0 - boulderFields)) * 8;
+        }
+    }
+    
+    // Scree slopes (angular debris)
+    if (screeSlopes > 0) {
+        const screeNoise = Math.abs(noiseGen.noise(x * secondaryNoiseScale, 13000, z * secondaryNoiseScale));
+        if (screeNoise > (1.0 - screeSlopes)) {
+            biomeModification -= (screeNoise - (1.0 - screeSlopes)) * 10;
+        }
+    }
+    
+    // Natural arches (rare formations)
+    if (naturalArches > 0) {
+        const archNoise = noiseGen.noise(x * primaryNoiseScale * 0.15, 14000, z * primaryNoiseScale * 0.15);
+        if (Math.abs(archNoise) < naturalArches * 0.05) {
+            const archHeight = (naturalArches * 0.05 - Math.abs(archNoise)) * 100;
+            biomeModification += archHeight;
+        }
+    }
+    
+    // Apply advanced noise blending
+    if (voronoiInfluence > 0 || harmonicDistortion > 0 || simplexBlend > 0) {
+        const advancedNoise1 = noiseGen.noise(x * primaryNoiseScale * 1.5, 15000, z * primaryNoiseScale * 1.5);
+        const advancedNoise2 = noiseGen.noise(x * secondaryNoiseScale * 0.75, 16000, z * secondaryNoiseScale * 0.75);
+        
+        // Voronoi-like influence (cell-based)
+        if (voronoiInfluence > 0) {
+            const cellNoise = Math.abs(advancedNoise1);
+            biomeModification += (cellNoise - 0.5) * voronoiInfluence * 10;
+        }
+        
+        // Harmonic distortion
+        if (harmonicDistortion > 0) {
+            biomeModification *= (1.0 + Math.sin(advancedNoise2 * Math.PI * 2) * harmonicDistortion);
+        }
+        
+        // Simplex blend (adds organic variation)
+        if (simplexBlend > 0) {
+            biomeModification += advancedNoise1 * advancedNoise2 * simplexBlend * 5;
+        }
+    }
+    
+    // Apply fractal dimension (affects overall terrain complexity)
+    const fractalScale = Math.pow(fractalDimension / 2.0, 2);
+    biomeModification *= fractalScale;
+    
+    // Sedimentation adds material to low areas
+    if (sedimentationRate > 0 && biomeModification < 0) {
+        biomeModification *= (1.0 - sedimentationRate * 0.3);
+    }
+    
+    // Apply biome-specific terrain characteristics for named biome types
+    if (biome.transition !== "None") {
+        if (biomeName.includes('mountain') || biomeName.includes('peaks')) {
+            const ridgedTerrain = ridgedNoise(noiseGen, x, z, { frequency: secondaryNoiseScale, amplitude: 30, octaves: noiseOctaves });
+            biomeModification += ridgedTerrain * heightAmplitude;
+        } else if (biomeName.includes('desert') || biomeName.includes('dunes')) {
+            const duneNoise = domainWarpedNoise(noiseGen, x, z, { frequency: secondaryNoiseScale * 1.5, amplitude: 15, octaves: Math.max(3, noiseOctaves - 1) }, domainWarpStrength * 100);
+            biomeModification += duneNoise * 0.8 * heightAmplitude;
+        } else if (biomeName.includes('ocean') || biomeName.includes('lake')) {
+            biomeModification *= 0.3;
+        }
+    } else {
+        // For biomes with "None" transition, use smoother terrain
+        if (biomeName.includes('ocean') || biomeName.includes('lake')) {
+            biomeModification *= 0.3;
+        } else {
+            biomeModification *= 0.7;
+        }
     }
     
     // Apply final biome modification
     elevation += biomeModification;
+    
+    // Apply height blending with nearby biomes to prevent ridgelines
+    if (neighborBiomes && neighborBiomes.length > 0) {
+        let blendSum = 0;
+        let blendWeight = 0;
+        
+        for (const neighbor of neighborBiomes) {
+            const distance = Math.sqrt(Math.pow(x - neighbor.x, 2) + Math.pow(z - neighbor.z, 2));
+            if (distance < 150) {
+                const weight = Math.max(0, 1 - distance / 150);
+                const neighborBiome = BIOMES[neighbor.biome];
+                if (neighborBiome) {
+                    // Calculate base height for neighbor with some terrain variation
+                    const neighborLocalNoise = multiOctaveNoise(noiseGen, neighbor.x, neighbor.z, NOISE_CONFIG.local);
+                    const neighborHeight = neighborBiome.baseHeight + neighborLocalNoise * neighborBiome.heightVariation * 0.3;
+                    blendSum += neighborHeight * weight;
+                    blendWeight += weight;
+                }
+            }
+        }
+        
+        if (blendWeight > 0) {
+            const averageNeighborHeight = blendSum / blendWeight;
+            const blendFactor = Math.min(0.5, blendWeight);
+            elevation = elevation * (1 - blendFactor) + averageNeighborHeight * blendFactor;
+        }
+    }
     
     // Ensure within bounds
     elevation = Math.max(TERRAIN_BOUNDS.min_elevation, 
@@ -98,8 +343,18 @@ function calculateSophisticatedHeight(x, z, biomeName, noiseGen, neighborBiomes)
     return Math.floor(elevation);
 }
 
-// Helper noise functions for the worker
+// Helper noise functions for the worker with caching
 function multiOctaveNoise(noiseGen, x, z, config) {
+    // Create cache key with rounded coordinates for better cache hits
+    const cacheKey = `${Math.floor(x * 100) / 100}:${Math.floor(z * 100) / 100}:${config.frequency}:${config.octaves}`;
+    
+    // Check cache first
+    if (noiseCache.has(cacheKey)) {
+        noiseCacheHits++;
+        return noiseCache.get(cacheKey);
+    }
+    
+    noiseCacheMisses++;
     let value = 0;
     let amplitude = config.amplitude;
     let frequency = config.frequency;
@@ -112,10 +367,70 @@ function multiOctaveNoise(noiseGen, x, z, config) {
         frequency *= 2.0;
     }
 
-    return value / maxValue;
+    const result = value / maxValue;
+    
+    // Store in cache if not full
+    if (noiseCache.size < NOISE_CACHE_SIZE) {
+        noiseCache.set(cacheKey, result);
+    } else if (noiseCache.size === NOISE_CACHE_SIZE) {
+        // Clear 20% of cache when full
+        const keysToDelete = Array.from(noiseCache.keys()).slice(0, Math.floor(NOISE_CACHE_SIZE * 0.2));
+        keysToDelete.forEach(k => noiseCache.delete(k));
+        noiseCache.set(cacheKey, result);
+    }
+    
+    return result;
+}
+
+// Custom multi-octave noise with configurable persistence and lacunarity
+function multiOctaveNoiseCustom(noiseGen, x, z, config) {
+    // Create cache key
+    const cacheKey = `custom:${Math.floor(x * 100) / 100}:${Math.floor(z * 100) / 100}:${config.frequency}:${config.octaves}:${config.persistance}:${config.lacunarity}`;
+    
+    // Check cache first
+    if (noiseCache.has(cacheKey)) {
+        noiseCacheHits++;
+        return noiseCache.get(cacheKey);
+    }
+    
+    noiseCacheMisses++;
+    let value = 0;
+    let amplitude = config.amplitude;
+    let frequency = config.frequency;
+    let maxValue = 0;
+
+    for (let i = 0; i < config.octaves; i++) {
+        value += noiseGen.noise(x * frequency, i * 1000, z * frequency) * amplitude;
+        maxValue += amplitude;
+        amplitude *= config.persistance;  // Use custom persistence
+        frequency *= config.lacunarity;   // Use custom lacunarity
+    }
+
+    const result = value / maxValue;
+    
+    // Store in cache if not full
+    if (noiseCache.size < NOISE_CACHE_SIZE) {
+        noiseCache.set(cacheKey, result);
+    } else if (noiseCache.size === NOISE_CACHE_SIZE) {
+        // Clear 20% of cache when full
+        const keysToDelete = Array.from(noiseCache.keys()).slice(0, Math.floor(NOISE_CACHE_SIZE * 0.2));
+        keysToDelete.forEach(k => noiseCache.delete(k));
+        noiseCache.set(cacheKey, result);
+    }
+    
+    return result;
 }
 
 function ridgedNoise(noiseGen, x, z, config) {
+    // Cache ridged noise too
+    const cacheKey = `ridged:${Math.floor(x * 100) / 100}:${Math.floor(z * 100) / 100}:${config.frequency}:${config.octaves}`;
+    
+    if (noiseCache.has(cacheKey)) {
+        noiseCacheHits++;
+        return noiseCache.get(cacheKey);
+    }
+    
+    noiseCacheMisses++;
     let value = 0;
     let amplitude = config.amplitude;
     let frequency = config.frequency;
@@ -129,6 +444,10 @@ function ridgedNoise(noiseGen, x, z, config) {
         frequency *= 2.0;
     }
 
+    if (noiseCache.size < NOISE_CACHE_SIZE) {
+        noiseCache.set(cacheKey, value);
+    }
+    
     return value;
 }
 
@@ -571,64 +890,138 @@ function generateChunkData(cx, cz) {
     // Seed-driven biome selection for consistent world generation
     function selectBiomeWithSeed(x, z, seed) {
         // Use multiple noise layers for natural biome distribution
-        const biomeScale = 0.0008;
-        const detailScale = 0.003;
-        const warpScale = 0.0015;
+        const currentBiomeScale = biomeScale || 0.0012;  // Use global biomeScale or default
+        const detailScale = currentBiomeScale * 3.33;    // Proportional to biomeScale
+        const warpScale = currentBiomeScale * 2.5;       // Proportional to biomeScale
+        const tempScale = currentBiomeScale * 0.67;      // Proportional to biomeScale
+        const moistScale = currentBiomeScale * 0.83;     // Proportional to biomeScale
         
-        // Apply domain warping for organic biome shapes
-        const warpX = noiseGenerator.noise((x + seed) * warpScale, seed * 0.001, z * warpScale) * 200;
-        const warpZ = noiseGenerator.noise(x * warpScale, (seed + 1000) * 0.001, (z + seed) * warpScale) * 200;
+        // Apply stronger domain warping for organic biome shapes
+        const warpX = noiseGenerator.noise((x + seed) * warpScale, seed * 0.001, z * warpScale) * 400;
+        const warpZ = noiseGenerator.noise(x * warpScale, (seed + 1000) * 0.001, (z + seed) * warpScale) * 400;
         
         const warpedX = x + warpX;
         const warpedZ = z + warpZ;
         
-        // Generate base biome noise
-        const biomeNoise = noiseGenerator.noise(warpedX * biomeScale, seed * 0.01, warpedZ * biomeScale);
-        const detailNoise = noiseGenerator.noise(warpedX * detailScale, (seed + 500) * 0.01, warpedZ * detailScale);
+        // Generate multiple noise layers for complex biome patterns
+        const biomeNoise1 = noiseGenerator.noise(warpedX * currentBiomeScale, seed * 0.01, warpedZ * currentBiomeScale);
+        const biomeNoise2 = noiseGenerator.noise(warpedX * currentBiomeScale * 2.1, (seed + 100) * 0.01, warpedZ * currentBiomeScale * 2.1) * 0.5;
+        const detailNoise = noiseGenerator.noise(warpedX * detailScale, (seed + 500) * 0.01, warpedZ * detailScale) * 0.3;
         const elevationNoise = noiseGenerator.noise(x * 0.001, (seed + 1500) * 0.01, z * 0.001);
         
-        // Combine noises for biome selection
-        const combinedNoise = (biomeNoise + detailNoise * 0.3 + elevationNoise * 0.2) / 1.5;
+        // Generate temperature and moisture values for biome compatibility
+        const tempNoise = noiseGenerator.noise(x * tempScale, (seed + 2000) * 0.01, z * tempScale);
+        const moistNoise = noiseGenerator.noise(x * moistScale, (seed + 3000) * 0.01, z * moistScale);
+        
+        // Simulate realistic temperature with wider range for more variety
+        // Expand range from 30-110°F to 10-130°F for better biome differentiation
+        const baseTemp = 70 + tempNoise * 60 - (elevationNoise > 0 ? elevationNoise * 40 : 0);
+        // Expand moisture range slightly
+        const moisture = Math.max(0, Math.min(1, 0.5 + moistNoise * 0.6));
+        
+        // Combine noises for complex biome selection
+        const combinedNoise = biomeNoise1 + biomeNoise2 + detailNoise;
         const normalizedNoise = (combinedNoise + 1) / 2;
         
-        // Create biome weight array based on rarity and size
+        // Create biome weight array based on rarity and environmental compatibility
         const biomeWeights = [];
         const biomeNames = Object.keys(BIOMES);
         
         for (const biomeName of biomeNames) {
             const biome = BIOMES[biomeName];
-            const weight = (biome.rarity / 100) * biome.size * biome.size;
+            // Use default size if not specified in edges
+            const biomeSize = biome.edges && biome.edges.size ? biome.edges.size : 1.0;
+            
+            // Calculate environmental compatibility
+            const tempDiff = Math.abs(baseTemp - biome.temperature);
+            const moistDiff = Math.abs(moisture - biome.moisture);
+            
+            // Temperature compatibility - stricter ranges for better differentiation
+            const tempCompatibility = Math.max(0.05, 1 - tempDiff / 60); // Allow within 60°F range
+            // Moisture compatibility - stricter for better differentiation
+            const moistCompatibility = Math.max(0.05, 1 - moistDiff / 0.6); // Allow within 0.6 moisture range
+            
+            // Environmental fitness
+            const envFitness = (tempCompatibility + moistCompatibility) / 2;
+            
+            // Reduce dominance of high-rarity biomes and add diversity boost
+            // Use cube root instead of square root to further reduce dominance
+            // If rarity is not defined, default to 100 (common biome)
+            const biomeRarity = biome.rarity !== undefined ? biome.rarity : 100;
+            const rarityFactor = Math.pow(biomeRarity / 100, 0.33); // Cube root for more balance
+            const diversityBoost = 0.5; // Base chance for all biomes
+            
+            // Final weight combines rarity, size, and environmental fitness
+            // Prioritize environmental fitness over rarity for more varied biomes
+            const weight = (rarityFactor * 0.4 + diversityBoost) * biomeSize * Math.pow(envFitness, 0.7);
             biomeWeights.push({ name: biomeName, weight: weight, biome: biome });
         }
         
         biomeWeights.sort((a, b) => b.weight - a.weight);
         
-        // Calculate elevation for biome filtering
+        // Calculate elevation for additional filtering
         const elevation = 65 + elevationNoise * 80;
         
-        // Filter biomes by elevation compatibility
+        // Filter biomes by elevation compatibility (more lenient) and ensure minimum variety
         const suitableBiomes = biomeWeights.filter(item => {
             const heightDiff = Math.abs(elevation - item.biome.baseHeight);
-            return heightDiff < item.biome.heightVariation * 1.5;
+            // More lenient filtering - allow more biomes or high-weight biomes
+            return heightDiff < item.biome.heightVariation * 4.0 || item.weight > 0.5;
         });
+        
+        // Ensure we always have at least 3 biome options for variety
+        if (suitableBiomes.length < 3) {
+            // Add top biomes by weight until we have at least 3 options
+            const additionalBiomes = biomeWeights.slice(0, Math.max(3, Math.min(5, biomeWeights.length)));
+            for (const biome of additionalBiomes) {
+                if (!suitableBiomes.find(s => s.name === biome.name)) {
+                    suitableBiomes.push(biome);
+                }
+            }
+        }
         
         if (suitableBiomes.length === 0) {
             return "plains";
         }
         
-        // Calculate cumulative weights
-        let totalWeight = 0;
-        for (const item of suitableBiomes) {
-            totalWeight += item.weight;
-        }
+        // Use multiple selection methods for more variety
+        const selectionMethod = Math.abs(biomeNoise1) % 1;
         
-        // Select biome based on noise value
-        let target = normalizedNoise * totalWeight;
-        for (const item of suitableBiomes) {
-            target -= item.weight;
-            if (target <= 0) {
-                return item.name;
+        if (selectionMethod < 0.4) {
+            // Method 1: Weight-based selection using noise
+            let totalWeight = 0;
+            for (const item of suitableBiomes) {
+                totalWeight += item.weight;
             }
+            
+            let target = normalizedNoise * totalWeight;
+            for (const item of suitableBiomes) {
+                target -= item.weight;
+                if (target <= 0) {
+                    return item.name;
+                }
+            }
+        } else if (selectionMethod < 0.7) {
+            // Method 2: Semi-random selection favoring rare biomes
+            const randomFactor = Math.abs(detailNoise * combinedNoise);
+            const index = Math.floor(randomFactor * Math.min(4, suitableBiomes.length));
+            return suitableBiomes[index].name;
+        } else {
+            // Method 3: Pure environmental fitness selection
+            suitableBiomes.sort((a, b) => {
+                const aTempDiff = Math.abs(baseTemp - a.biome.temperature);
+                const bTempDiff = Math.abs(baseTemp - b.biome.temperature);
+                const aMoistDiff = Math.abs(moisture - a.biome.moisture);
+                const bMoistDiff = Math.abs(moisture - b.biome.moisture);
+                const aFitness = 1 / (aTempDiff + aMoistDiff + 1);
+                const bFitness = 1 / (bTempDiff + bMoistDiff + 1);
+                return bFitness - aFitness;
+            });
+            
+            // Select from top 3 most environmentally suitable biomes
+            const topCount = Math.min(3, suitableBiomes.length);
+            const index = Math.floor(Math.abs(normalizedNoise * topCount));
+            return suitableBiomes[index].name;
         }
         
         return suitableBiomes[0].name;
@@ -639,13 +1032,16 @@ function generateChunkData(cx, cz) {
     const edgeCache = new Map();
     
     // Pre-calculate biomes for the entire chunk area plus a buffer for edge detection
-    const BUFFER_SIZE = 15; // Buffer around chunk for edge detection
+    // OPTIMIZATION: Reduced buffer size from 15 to 8 for faster calculation
+    const BUFFER_SIZE = 8; // Buffer around chunk for edge detection
     const chunkStartX = cx * CHUNK_SIZE;
     const chunkStartZ = cz * CHUNK_SIZE;
     
     const biomeCalcStart = performance.now();
-    for (let x = -BUFFER_SIZE; x < CHUNK_SIZE + BUFFER_SIZE; x++) {
-        for (let z = -BUFFER_SIZE; z < CHUNK_SIZE + BUFFER_SIZE; z++) {
+    // OPTIMIZATION: Calculate biomes at 2-block intervals and interpolate for smooth transitions
+    const BIOME_SAMPLE_STEP = 2;
+    for (let x = -BUFFER_SIZE; x < CHUNK_SIZE + BUFFER_SIZE; x += BIOME_SAMPLE_STEP) {
+        for (let z = -BUFFER_SIZE; z < CHUNK_SIZE + BUFFER_SIZE; z += BIOME_SAMPLE_STEP) {
             const globalX = chunkStartX + x;
             const globalZ = chunkStartZ + z;
             const key = `${globalX},${globalZ}`;
@@ -653,6 +1049,17 @@ function generateChunkData(cx, cz) {
             // Use seed-driven biome selection for consistent world generation
             const biomeKey = selectBiomeWithSeed(globalX, globalZ, worldSeed);
             biomeCache.set(key, biomeKey);
+            
+            // Fill in intermediate points with same biome for continuity
+            if (BIOME_SAMPLE_STEP > 1) {
+                for (let dx = 0; dx < BIOME_SAMPLE_STEP && x + dx < CHUNK_SIZE + BUFFER_SIZE; dx++) {
+                    for (let dz = 0; dz < BIOME_SAMPLE_STEP && z + dz < CHUNK_SIZE + BUFFER_SIZE; dz++) {
+                        if (dx === 0 && dz === 0) continue;
+                        const interpKey = `${globalX + dx},${globalZ + dz}`;
+                        biomeCache.set(interpKey, biomeKey);
+                    }
+                }
+            }
             
             // Store in global biome storage for adjacency checking
             if (biomeStorage) {
@@ -768,8 +1175,8 @@ function generateChunkData(cx, cz) {
             return edgeCache.get(key);
         }
         
-        // Simplified edge detection - just check immediate neighbors
-        const checkRadius = Math.min(5, currentBiome.edges ? Math.ceil(currentBiome.edges.size * 50) : 2);
+        // Simplified edge detection - check wider area for better blending
+        const checkRadius = Math.min(8, currentBiome.edges ? Math.ceil(currentBiome.edges.size * 50) : 4);
         
         // Check only cardinal and diagonal directions for performance
         const checkPoints = [
@@ -803,50 +1210,92 @@ function generateChunkData(cx, cz) {
         
         // If advanced terrain system is available, use it
         if (NOISE_CONFIG && TERRAIN_BOUNDS && GEOLOGICAL_FORMATIONS) {
-            // Get nearby biomes for transition calculations
+            // OPTIMIZATION: Reduced nearby biome sampling from 5x5 grid to sparse sampling
             const nearbyBiomes = [];
-            for (let dx = -100; dx <= 100; dx += 50) {
-                for (let dz = -100; dz <= 100; dz += 50) {
-                    if (dx === 0 && dz === 0) continue;
-                    const nearbyBiome = getBiomeForChunk(globalX + dx, globalZ + dz);
-                    if (nearbyBiome !== currentBiomeKey) {
-                        nearbyBiomes.push({
-                            biome: nearbyBiome,
-                            x: globalX + dx,
-                            z: globalZ + dz
-                        });
-                    }
+            const sampleOffsets = [
+                [-100, 0], [100, 0], [0, -100], [0, 100],  // Cardinal only for speed
+                [-70, -70], [70, 70]  // Just 2 diagonals instead of 4
+            ];
+            
+            for (const [dx, dz] of sampleOffsets) {
+                const nearbyBiome = getBiomeForChunk(globalX + dx, globalZ + dz);
+                if (nearbyBiome !== currentBiomeKey) {
+                    nearbyBiomes.push({
+                        biome: nearbyBiome,
+                        x: globalX + dx,
+                        z: globalZ + dz
+                    });
                 }
             }
             
             return calculateSophisticatedHeight(globalX, globalZ, currentBiomeKey, noiseGenerator, nearbyBiomes);
         }
         
-        // Fallback to existing height calculation system
+        // Check if we're near a biome boundary and need height blending
         const edgeInfo = isAtBiomeEdge(globalX, globalZ);
-        const hasEdgeProperties = currentBiome.edges !== undefined;
+        if (edgeInfo.isEdge && edgeInfo.nearbyBiomeKey && edgeInfo.edgeDistance < 16) {
+            const nearbyBiome = BIOMES[edgeInfo.nearbyBiomeKey];
+            const currentHeight = calculateBasicHeightForBiome(globalX, globalZ, currentBiome, currentBiomeKey);
+            const nearbyHeight = calculateBasicHeightForBiome(globalX, globalZ, nearbyBiome, edgeInfo.nearbyBiomeKey);
+            
+            // Enhanced blending - check multiple nearby points for smoother transitions
+            let totalHeight = currentHeight;
+            let totalWeight = 1.0;
+            
+            // OPTIMIZATION: Reduced sample points from 8 to 4 for faster blending
+            const samplePoints = [
+                [-8, 0], [8, 0], [0, -8], [0, 8]
+            ];
+            
+            for (const [dx, dz] of samplePoints) {
+                const sampleX = globalX + dx;
+                const sampleZ = globalZ + dz;
+                const sampleBiomeKey = getBiomeForChunk(sampleX, sampleZ);
+                
+                if (sampleBiomeKey !== currentBiomeKey) {
+                    const sampleBiome = BIOMES[sampleBiomeKey];
+                    const sampleHeight = calculateBasicHeightForBiome(sampleX, sampleZ, sampleBiome, sampleBiomeKey);
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    const weight = Math.max(0, 1 - distance / 16);
+                    
+                    totalHeight += sampleHeight * weight;
+                    totalWeight += weight;
+                }
+            }
+            
+            return Math.floor(totalHeight / totalWeight);
+        }
+        
+        // Fallback to existing height calculation system
+        return calculateBasicHeightForBiome(globalX, globalZ, currentBiome, currentBiomeKey);
+    }
+    
+    // Helper function for basic height calculation
+    function calculateBasicHeightForBiome(globalX, globalZ, biome, biomeKey) {
+        const edgeInfo = isAtBiomeEdge(globalX, globalZ);
+        const hasEdgeProperties = biome.edges !== undefined;
         
         // Decide whether to use edge properties and how much to blend
         let biomeToUse;
         
         if (edgeInfo.isEdge && hasEdgeProperties) {
             // Calculate blend factor (simplified)
-            const blendFactor = currentBiome.edges.blend ? 
-                Math.min(1, edgeInfo.edgeDistance * (currentBiome.edges.blend * 0.1)) : 
+            const blendFactor = biome.edges.blend ? 
+                Math.min(1, edgeInfo.edgeDistance * (biome.edges.blend * 0.1)) : 
                 edgeInfo.edgeDistance;
             
             // Pre-calculate blended values
             biomeToUse = {
-                baseHeight: lerp(currentBiome.edges.baseHeight, currentBiome.baseHeight, blendFactor),
-                heightVariation: lerp(currentBiome.edges.heightVariation, currentBiome.heightVariation, blendFactor),
-                frequency: currentBiome.edges.frequency || currentBiome.frequency
+                baseHeight: lerp(biome.edges.baseHeight, biome.baseHeight, blendFactor),
+                heightVariation: lerp(biome.edges.heightVariation, biome.heightVariation, blendFactor),
+                frequency: biome.edges.frequency || biome.frequency
             };
         } else {
-            biomeToUse = currentBiome;
+            biomeToUse = biome;
         }
         
         // Enhanced transition calculation with multi-octave noise
-        if (currentBiome.transition === "None") {
+        if (biome.transition === "None") {
             // Generate multiple octaves of noise for more natural terrain
             const scale1 = biomeToUse.frequency;
             const scale2 = biomeToUse.frequency * 2.5;
@@ -864,16 +1313,16 @@ function generateChunkData(cx, cz) {
             
             // Combine octaves with different weights based on biome type
             let combinedNoise;
-            if (currentBiomeKey.includes('mountain') || currentBiomeKey.includes('peaks') || currentBiomeKey.includes('hills')) {
+            if (biomeKey.includes('mountain') || biomeKey.includes('peaks') || biomeKey.includes('hills')) {
                 // Mountains need more dramatic height variation
                 combinedNoise = noise1 + noise2 * 0.8 + noise3 * 0.4 + noise4 * 0.2;
-            } else if (currentBiomeKey.includes('plains') || currentBiomeKey.includes('meadow')) {
+            } else if (biomeKey.includes('plains') || biomeKey.includes('meadow')) {
                 // Plains should be smoother
                 combinedNoise = noise1 * 0.7 + noise2 * 0.3 + noise3 * 0.15 + noise4 * 0.1;
-            } else if (currentBiomeKey.includes('desert') || currentBiomeKey.includes('dunes')) {
+            } else if (biomeKey.includes('desert') || biomeKey.includes('dunes')) {
                 // Deserts have rolling dunes
                 combinedNoise = noise1 * 0.8 + noise2 * 0.6 + noise3 * 0.2 + noise4 * 0.1;
-            } else if (currentBiomeKey.includes('ocean') || currentBiomeKey.includes('lake')) {
+            } else if (biomeKey.includes('ocean') || biomeKey.includes('lake')) {
                 // Water areas should be relatively flat with subtle variation
                 combinedNoise = noise1 * 0.5 + noise2 * 0.2 + noise3 * 0.1 + noise4 * 0.05;
             } else {
@@ -884,7 +1333,7 @@ function generateChunkData(cx, cz) {
             return Math.floor(biomeToUse.baseHeight + combinedNoise * biomeToUse.heightVariation);
         } else {
             // Enhanced blending for smoother transitions
-            const blendRadius = (currentBiome.transition === "Full") ? 8 : 4;
+            const blendRadius = (biome.transition === "Full") ? 8 : 4;
             let sumHeights = 0;
             let totalWeight = 0;
             
@@ -956,23 +1405,61 @@ function generateChunkData(cx, cz) {
             // Use enhanced biome selection with transitions
             const biomeKey = getBiomeWithTransitions(globalX, globalZ);
             const biome = BIOMES[biomeKey];
-            const h = getHeightWithBiomeForChunk(globalX, globalZ);
+            let h = getHeightWithBiomeForChunk(globalX, globalZ);
+            
+            // Additional height smoothing for better biome alignment
+            // OPTIMIZATION: Only smooth at actual edges, and reduce sampling
+            const edgeInfo = isAtBiomeEdge(globalX, globalZ);
+            if (edgeInfo.isEdge && edgeInfo.nearbyBiomeKey) {
+                const nearbyBiome = BIOMES[edgeInfo.nearbyBiomeKey];
+                const currentBaseHeight = biome.baseHeight;
+                const nearbyBaseHeight = nearbyBiome.baseHeight;
+                
+                // If there's a significant height difference, apply extra smoothing
+                const heightDiff = Math.abs(currentBaseHeight - nearbyBaseHeight);
+                if (heightDiff > 5) { // OPTIMIZATION: Only smooth significant differences (was 2)
+                    // OPTIMIZATION: Reduced sample radius from 2 to 1 for faster smoothing
+                    let smoothSum = h;
+                    let smoothCount = 1;
+                    
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dz = -1; dz <= 1; dz++) {
+                            if (dx === 0 && dz === 0) continue;
+                            
+                            const sampleX = globalX + dx;
+                            const sampleZ = globalZ + dz;
+                            const sampleBiomeKey = getBiomeForChunk(sampleX, sampleZ);
+                            
+                            if (sampleBiomeKey === biomeKey || sampleBiomeKey === edgeInfo.nearbyBiomeKey) {
+                                const sampleHeight = getHeightWithBiomeForChunk(sampleX, sampleZ);
+                                const distance = Math.sqrt(dx * dx + dz * dz);
+                                const weight = Math.max(0, 1 - distance / 2); // OPTIMIZATION: Adjusted weight for new radius
+                                
+                                smoothSum += sampleHeight * weight;
+                                smoothCount += weight;
+                            }
+                        }
+                    }
+                    
+                    h = Math.floor(smoothSum / smoothCount);
+                }
+            }
             
             // Get edge info once (it's cached now)
-            const edgeInfo = isAtBiomeEdge(globalX, globalZ);
+            const updatedEdgeInfo = isAtBiomeEdge(globalX, globalZ);
             
             // Enhanced layer blending for smooth transitions
             let layersToUse = biome.layers;
             let defaultLayerToUse = biome.defaultLayer;
             
             // Check for biome transition blending
-            if (BIOME_ADJACENCY && edgeInfo.isEdge) {
-                const nearbyBiomeKey = edgeInfo.nearbyBiomeKey;
+            if (BIOME_ADJACENCY && updatedEdgeInfo.isEdge) {
+                const nearbyBiomeKey = updatedEdgeInfo.nearbyBiomeKey;
                 const transitionType = getBiomeTransitionType(biomeKey, nearbyBiomeKey);
                 
                 if (transitionType === 'buffered' || transitionType === 'direct') {
                     const nearbyBiome = BIOMES[nearbyBiomeKey];
-                    const blendFactor = Math.min(0.5, edgeInfo.edgeDistance);
+                    const blendFactor = Math.min(0.5, updatedEdgeInfo.edgeDistance);
                     
                     // Blend layers between biomes for smoother transitions
                     if (nearbyBiome && nearbyBiome.layers && Math.random() < blendFactor) {
@@ -988,7 +1475,7 @@ function generateChunkData(cx, cz) {
                 }
             }
             
-            if (edgeInfo.isEdge && biome.edges) {
+            if (updatedEdgeInfo.isEdge && biome.edges) {
                 // If we're using edge properties, check if we should use the edge's layers or default ones
                 if (biome.edges.layers && biome.edges.layers !== "default") {
                     layersToUse = biome.edges.layers;
@@ -1021,21 +1508,34 @@ function generateChunkData(cx, cz) {
                     thickness = Math.min(thickness, remaining);
                     const blockType = BLOCK_TYPES[layer.type];
                     
-                    // Optimized block placement
-                    for (let y = remaining - thickness; y < remaining; y++) {
-                        if (y >= 0 && y < WORLD_HEIGHT) {
+                    // OPTIMIZATION: Use fill() when possible for consecutive blocks
+                    const startY = remaining - thickness;
+                    const endY = remaining;
+                    
+                    if (startY >= 0 && endY <= WORLD_HEIGHT) {
+                        // Batch fill the layer
+                        for (let y = startY; y < endY; y++) {
                             data[x][y][z] = blockType;
+                        }
+                    } else {
+                        // Boundary check for edge cases
+                        for (let y = startY; y < endY; y++) {
+                            if (y >= 0 && y < WORLD_HEIGHT) {
+                                data[x][y][z] = blockType;
+                            }
                         }
                     }
                     remaining -= thickness;
                 }
             }
             
-            // Fill remaining with default layer - optimized
+            // OPTIMIZATION: Fill remaining with default layer using batch operation
             const defaultBlockType = BLOCK_TYPES[defaultLayerToUse];
-            for (let y = 0; y < remaining; y++) {
-                if (y < WORLD_HEIGHT) {
-                    data[x][y][z] = defaultBlockType;
+            if (remaining > 0 && defaultBlockType !== undefined) {
+                for (let y = 0; y < remaining; y++) {
+                    if (y < WORLD_HEIGHT) {
+                        data[x][y][z] = defaultBlockType;
+                    }
                 }
             }
 
@@ -1051,12 +1551,19 @@ function generateChunkData(cx, cz) {
             }
 
             // Generate structures based on biome - optimized
-            if (biome.structures && StructureGenerators) {
+            // OPTIMIZATION: Pre-calculate structure probability to avoid unnecessary calls
+            if (biome.structures && biome.structures.length > 0 && StructureGenerators) {
+                const structureRoll = Math.random() * 100; // Single random roll
+                let cumulativeProbability = 0;
+                
                 for (let i = 0; i < biome.structures.length; i++) {
                     const structure = biome.structures[i];
-                    // Pre-calculate structure chance and only check if generator exists
-                    if (StructureGenerators[structure.type] && Math.random() < (structure.frequency / 100)) {
+                    cumulativeProbability += structure.frequency;
+                    
+                    // Check if this structure should generate based on cumulative probability
+                    if (structureRoll < cumulativeProbability && StructureGenerators[structure.type]) {
                         StructureGenerators[structure.type](data, x, h, z);
+                        break; // Only place one structure per column for performance
                     }
                 }
             }
@@ -1087,9 +1594,16 @@ function generateChunkData(cx, cz) {
 
     const totalTime = performance.now() - startTime;
     
-    // Optional: Log performance metrics (comment out in production)
-    if (totalTime > 50) { // Only log slow chunks
-        console.log(`Chunk (${cx},${cz}) generation took ${totalTime.toFixed(2)}ms (biome calc: ${biomeCalcTime.toFixed(2)}ms)`);
+    // OPTIMIZATION: Performance metrics logging
+    const cacheHitRate = noiseCacheMisses > 0 ? 
+        ((noiseCacheHits / (noiseCacheHits + noiseCacheMisses)) * 100).toFixed(1) : 0;
+    
+    if (totalTime > 100) { // Only log slow chunks
+        console.log(`⚡ Chunk (${cx},${cz}) generated in ${totalTime.toFixed(1)}ms | Biome calc: ${biomeCalcTime.toFixed(1)}ms | Cache hit rate: ${cacheHitRate}%`);
+    } else if (totalTime < 20) { // Log fast chunks occasionally
+        if (Math.random() < 0.05) { // 5% sampling
+            console.log(`🚀 FAST chunk (${cx},${cz}) generated in ${totalTime.toFixed(1)}ms | Cache hit rate: ${cacheHitRate}%`);
+        }
     }
 
     return data;
@@ -1097,7 +1611,10 @@ function generateChunkData(cx, cz) {
 
 // Message handler
 self.onmessage = function(e) {
-    const { cx, cz, constants, type, modifiedChunk, requestGeometry } = e.data;
+    const { cx, cz, constants, type, modifiedChunk, requestGeometry, isPriority } = e.data;
+    
+    // Priority chunks bypass normal queue processing (handled immediately)
+    // This ensures modified chunks update instantly for better user experience
     
     if (type === "updateChunk") {
         // Store modified chunk data
@@ -1154,6 +1671,7 @@ self.onmessage = function(e) {
         BIOMES = constants.BIOMES;
         worldSeed = constants.worldSeed;
         blockColors = constants.blockColors;
+        biomeScale = constants.biomeScale || 0.0012; // Default value if not provided
         
         // Advanced terrain system constants
         BIOME_ADJACENCY = constants.BIOME_ADJACENCY;
@@ -1262,3 +1780,57 @@ self.onmessage = function(e) {
         self.postMessage({ cx, cz, chunkData });
     }
 };
+
+// Helper to enforce biome spacing rule (no same biome within MIN_DIST)
+function isSameBiomeNearby(biomeName, x, z) {
+    const MIN_DIST = 50;
+    const checkOffsets = [[MIN_DIST, 0], [-MIN_DIST, 0], [0, MIN_DIST], [0, -MIN_DIST]];
+    for (const [dx, dz] of checkOffsets) {
+        const key = `${x + dx},${z + dz}`;
+        if (biomeStorage.get(key) === biomeName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// After biomeCache building and timing, apply smoothing to remove small spikes (smooth edges)
+{
+    const smoothed = new Map();
+    for (let [key, biomeKey] of biomeCache.entries()) {
+        const [gx, gz] = key.split(',').map(Number);
+        const neighbors = [];
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dz = -1; dz <= 1; dz++) {
+                if (dx === 0 && dz === 0) continue;
+                const nKey = `${gx + dx},${gz + dz}`;
+                if (biomeCache.has(nKey)) neighbors.push(biomeCache.get(nKey));
+            }
+        }
+        // count frequencies
+        const freq = {};
+        neighbors.forEach(b => { freq[b] = (freq[b] || 0) + 1; });
+        // determine majority
+        let majority = biomeKey;
+        let maxCount = freq[biomeKey] || 0;
+        for (const [b, count] of Object.entries(freq)) {
+            if (count > maxCount) {
+                majority = b;
+                maxCount = count;
+            }
+        }
+        // only replace isolated spikes (majority more than half of neighbors)
+        if (maxCount >= 5) {
+            smoothed.set(key, majority);
+        } else {
+            smoothed.set(key, biomeKey);
+        }
+    }
+    // update biomeCache and global storage
+    biomeStorage.clear();
+    biomeCache.clear();
+    for (const [key, b] of smoothed.entries()) {
+        biomeCache.set(key, b);
+        biomeStorage.set(key, b);
+    }
+}

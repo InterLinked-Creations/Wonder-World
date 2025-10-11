@@ -421,14 +421,14 @@
             ],
             "structures": [],
             
-            "baseHeight": 60,
+            "baseHeight": 20,
             "heightVariation": 15,
             "heightAmplitude": 0.6,
             "terrainRoughness": 0.2,
             "slopeIntensity": 0.1,
             
             "plateauChance": 0.02,
-            "valleyDepth": 80,
+            "valleyDepth": 12,
             "ridgeHeight": 3,
             "erosionFactor": 0.05,
             "sedimentationRate": 0.8,
@@ -476,7 +476,7 @@
             "simplexBlend": 0.6,
             
             "edges": {
-                "baseHeight": 45,
+                "baseHeight": 35,
                 "heightVariation": 8,
                 "size": 1.0,
                 "layers": [
@@ -1074,7 +1074,7 @@
             ],
             "structures": [],
             
-            "baseHeight": 48,
+            "baseHeight": 35,
             "heightVariation": 12,
             "heightAmplitude": 0.8,
             "terrainRoughness": 0.6,
@@ -1129,7 +1129,7 @@
             "simplexBlend": 0.5,
             
             "edges": {
-                "baseHeight": 52,
+                "baseHeight": 40,
                 "heightVariation": 10,
                 "size": 0.6,
                 "layers": [
@@ -1723,7 +1723,7 @@
             ],
             "structures": [],
             
-            "baseHeight": 12,
+            "baseHeight": 20,
             "heightVariation": 18,
             "heightAmplitude": 0.9,
             "terrainRoughness": 0.6,
@@ -1778,7 +1778,7 @@
             "simplexBlend": 0.5,
             
             "edges": {
-                "baseHeight": 22,
+                "baseHeight": 30,
                 "heightVariation": 15,
                 "size": 0.7,
                 "layers": [
@@ -2616,7 +2616,7 @@
             ],
             "structures": [],
             
-            "baseHeight": 61,
+            "baseHeight": 63,
             "heightVariation": 3,
             "heightAmplitude": 0.4,
             "terrainRoughness": 0.28,
@@ -2671,7 +2671,7 @@
             "simplexBlend": 0.42,
             
             "edges": {
-                "baseHeight": 60,
+                "baseHeight": 62,
                 "heightVariation": 4,
                 "size": 0.8,
                 "layers": [
