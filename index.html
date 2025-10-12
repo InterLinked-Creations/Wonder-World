@@ -218,7 +218,7 @@
 
 
     <!-- Load Three.js from a CDN -->
-    <script src="./js/utils/three.min.js"></script>
+    <script src="./lib/js/utils/three.min.js"></script>
 
     <!-- ImprovedNoise with Random Permutation -->
     <script>
@@ -246,14 +246,14 @@
     // As of right now, it only watches for game packs.
 
     /*
-       The **Default** pack must always be somewhere in this array. If it isn't, it will be added.
-       All pack data must be stored in the 'gamePacks' directory except for the **Default** pack.
+       The **:Default:** pack must always be somewhere in this array. If it isn't, it will be added.
+       All pack data must be stored in the 'gamePacks' directory except for the **:Default:** pack.
        If there were a pack named "NewPack", it's name would be added to this array,
        and the data would be stored in the 'gamePacks/NewPack' directory.
-       The **Default** pack's data is in the data folder.
+       The **:Default:** pack's data is in the data folder.
     */
     const WATCHER = {
-        gamePacks: ["**Default**"]
+        gamePacks: ["**:Default:**"]
     };
     
     // Game Pack Data Collection System
@@ -264,9 +264,9 @@
         async initialize() {
             console.log("Initializing GamePack system...");
             
-            // Ensure **Default** pack is in the array
-            if (!WATCHER.gamePacks.includes("**Default**")) {
-                WATCHER.gamePacks.unshift("**Default**");
+            // Ensure **:Default:** pack is in the array
+            if (!WATCHER.gamePacks.includes("**:Default:**")) {
+                WATCHER.gamePacks.unshift("**:Default:**");
             }
             
             // Load all game packs
@@ -287,8 +287,8 @@
             
             const packData = {
                 name: packName,
-                isDefault: packName === "**Default**",
-                basePath: packName === "**Default**" ? "data/" : `gamePacks/${packName}/`,
+                isDefault: packName === "**:Default:**",
+                basePath: packName === "**:Default:**" ? "data/" : `gamePacks/${packName}/`,
                 blocks: {},
                 biomes: {},
                 textures: {},
@@ -338,36 +338,36 @@
         
         // Load pack configuration
         async loadPackConfig(basePath) {
-            const response = await fetch(`${basePath}config.json`);
-            if (!response.ok) throw new Error(`Config not found at ${basePath}config.json`);
+            const response = await fetch(`${basePath}json/config.json`);
+            if (!response.ok) throw new Error(`Config not found at ${basePath}json/config.json`);
             return await response.json();
         },
         
         // Load blocks data
         async loadPackBlocks(basePath) {
-            const response = await fetch(`${basePath}blocks.json`);
-            if (!response.ok) throw new Error(`Blocks not found at ${basePath}blocks.json`);
+            const response = await fetch(`${basePath}json/blocks.json`);
+            if (!response.ok) throw new Error(`Blocks not found at ${basePath}json/blocks.json`);
             return await response.json();
         },
         
         // Load biomes data
         async loadPackBiomes(basePath) {
-            const response = await fetch(`${basePath}biomes.json`);
-            if (!response.ok) throw new Error(`Biomes not found at ${basePath}biomes.json`);
+            const response = await fetch(`${basePath}json/biomes.json`);
+            if (!response.ok) throw new Error(`Biomes not found at ${basePath}json/biomes.json`);
             return await response.json();
         },
         
         // Load textures data
         async loadPackTextures(basePath) {
-            const response = await fetch(`${basePath}textures.json`);
-            if (!response.ok) throw new Error(`Textures not found at ${basePath}textures.json`);
+            const response = await fetch(`${basePath}json/textures.json`);
+            if (!response.ok) throw new Error(`Textures not found at ${basePath}json/textures.json`);
             return await response.json();
         },
         
         // Load structures data
         async loadPackStructures(basePath) {
-            const response = await fetch(`${basePath}structures.json`);
-            if (!response.ok) throw new Error(`Structures not found at ${basePath}structures.json`);
+            const response = await fetch(`${basePath}json/structures.json`);
+            if (!response.ok) throw new Error(`Structures not found at ${basePath}json/structures.json`);
             return await response.json();
         },
         
@@ -663,7 +663,7 @@
 
     // Chunk Loading Queue
     const MAX_CHUNKS_PER_FRAME = 5; // Maximum chunks to load per frame
-    const chunkWorker = new Worker('chunkWorker.js'); // A separate worker script for chunk generation
+    const chunkWorker = new Worker('./lib/js/workers/chunkWorker.js'); // A separate worker script for chunk generation
     const pendingChunks = new Map(); // Track chunks being processed by worker
 
     // The LOADING_REQUIREMENTS constant is used to define how the loading screen will behave.
@@ -1422,7 +1422,7 @@
                         Active: ${WATCHER.gamePacks.length}<br>
                         Loaded: ${GamePackLoader ? GamePackLoader.getPackNames().length : 0}<br>
                         ${WATCHER.gamePacks.slice(0, 3).map(pack => 
-                            pack === '**Default**' ? '<span style="color: #90EE90;">Default</span>' : 
+                            pack === '**:Default:**' ? '<span style="color: #90EE90;">Default</span>' : 
                             `<span style="color: #87CEEB;">${pack}</span>`
                         ).join(', ')}${WATCHER.gamePacks.length > 3 ? '...' : ''}
                     </div>
@@ -3703,10 +3703,10 @@
             }
         },
         
-        // Remove a pack from the watcher (except **Default**)
+        // Remove a pack from the watcher (except **:Default:**)
         removePack(packName) {
-            if (packName === "**Default**") {
-                console.error("Cannot remove the **Default** pack");
+            if (packName === "**:Default:**") {
+                console.error("Cannot remove the **:Default:** pack");
                 return false;
             }
             

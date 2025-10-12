@@ -1,2 +1,6 @@
 savedWorlds/
-notes/
+temp/
+*/temp/
+*.log
+*.tmp
+*.vscode/

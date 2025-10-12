@@ -11,7 +11,7 @@
             "stackable": true,
             "maxStack": 64,
             "properties": {
-                "color": "blocks/Stone.png",
+                "color": "data/textures/blocks/Stone.png",
                 "transparency": 1,
                 "sideRendering": "one"
             }
@@ -27,10 +27,10 @@
             "stackable": true,
             "maxStack": 64,
             "properties": {
-                "color": "blocks/Grass_Side.png",
+                "color": "data/textures/blocks/Grass_Side.png",
                 "faces": {
-                    "top": "blocks/Grass.png",
-                    "bottom": "blocks/Dirt.png"
+                    "top": "data/textures/blocks/Grass.png",
+                    "bottom": "data/textures/blocks/Dirt.png"
                 },
                 "transparency": 1,
                 "sideRendering": "one"
@@ -47,10 +47,10 @@
             "stackable": true,
             "maxStack": 64,
             "properties": {
-                "color": "blocks/Log_Side.png",
+                "color": "data/textures/blocks/Log_Side.png",
                 "faces": {
-                    "top": "blocks/Log_Top.png",
-                    "bottom": "blocks/Log_Top.png"
+                    "top": "data/textures/blocks/Log_Top.png",
+                    "bottom": "data/textures/blocks/Log_Top.png"
                 },
                 "transparency": 1,
                 "sideRendering": "one"
@@ -84,7 +84,7 @@
             "maxStack": 64,
             "gravity": true,
             "properties": {
-                "color": "blocks/Sand.png",
+                "color": "data/textures/blocks/Sand.png",
                 "transparency": 1,
                 "sideRendering": "one"
             }
@@ -116,7 +116,7 @@
             "stackable": false,
             "maxStack": 1,
             "properties": {
-                "color": "blocks/Water2.png",
+                "color": "data/textures/blocks/Water2.png",
                 "transparency": 0.7,
                 "sideRendering": "both",
                 "alphaTest": 0.1,

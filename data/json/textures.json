@@ -2,19 +2,19 @@
     "textures": {
         "blocks": {
             "stone": {
-                "all": "blocks/Stone.png",
+                "all": "data/textures/blocks/Stone.png",
                 "description": "Gray stone texture"
             },
             "dirt": {
-                "all": "blocks/Grass_Side.png",
-                "top": "blocks/Grass.png",
-                "bottom": "blocks/Dirt.png",
+                "all": "data/textures/blocks/Grass_Side.png",
+                "top": "data/textures/blocks/Grass.png",
+                "bottom": "data/textures/blocks/Dirt.png",
                 "description": "Grass block with dirt sides and grass top"
             },
             "wood": {
-                "all": "blocks/Log_Side.png",
-                "top": "blocks/Log_Top.png",
-                "bottom": "blocks/Log_Top.png",
+                "all": "data/textures/blocks/Log_Side.png",
+                "top": "data/textures/blocks/Log_Top.png",
+                "bottom": "data/textures/blocks/Log_Top.png",
                 "description": "Oak log with bark sides and ring top/bottom"
             },
             "leaves": {
@@ -23,7 +23,7 @@
                 "description": "Green oak leaves"
             },
             "sand": {
-                "all": "blocks/Sand.png",
+                "all": "data/textures/blocks/Sand.png",
                 "description": "Yellow sand texture"
             },
             "snow": {
@@ -32,7 +32,7 @@
                 "description": "White snow block"
             },
             "water": {
-                "all": "blocks/Water2.png",
+                "all": "data/textures/blocks/Water2.png",
                 "description": "Blue water texture with transparency"
             }
         },
@@ -50,7 +50,7 @@
         "blocks": {
             "size": 16,
             "format": "png",
-            "path": "blocks/",
+            "path": "data/textures/blocks/",
             "files": [
                 "Stone.png",
                 "Grass_Side.png", 
