@@ -43,6 +43,21 @@
                     "frequency": 0.006,
                     "amplitude": 30,
                     "octaves": 3
+                },
+                "multinoise": {
+                    "continentalness": { "frequency": 0.0008, "amplitude": 1, "octaves": 6 },
+                    "erosion": { "frequency": 0.002, "amplitude": 1, "octaves": 4 },
+                    "peaksValleys": { "frequency": 0.0032, "amplitude": 300, "octaves": 4, "ridged": true },
+                    "temperature": { "frequency": 0.0009, "amplitude": 1, "octaves": 3, "warp": 140 },
+                    "humidity": { "frequency": 0.0011, "amplitude": 1, "octaves": 3, "warp": 140 }
+                },
+                "terrainShaper": {
+                    "mountainScale": 130,
+                    "pvExponent": 1.35,
+                    "erosionMin": 0.1,
+                    "erosionWeight": 1,
+                    "baseSpanBelow": 35,
+                    "baseSpanAbove": 100
                 }
             },
             "geologicalFormations": {

@@ -6,12 +6,12 @@
             "type": "natural",
             "dimensions": {
                 "width": 5,
-                "height": 7,
+                "height": 70,
                 "depth": 5
             },
             "generator": {
                 "type": "procedural",
-                "trunkHeight": "4-6",
+                "trunkHeight": "40-60",
                 "leafRadius": 2,
                 "trunkMaterial": "wood",
                 "leafMaterial": "leaves"
@@ -68,7 +68,7 @@
         "tree": {
             "algorithm": "procedural_tree",
             "parameters": {
-                "trunk_height_range": [4, 6],
+                "trunk_height_range": [40, 60],
                 "leaf_radius": 2,
                 "leaf_density": 0.8,
                 "trunk_width": 1,
