@@ -183,7 +183,7 @@
 </head>
 <body>
     <div id="info">
-        Version: Alpha.8.4.3
+        Version: Alpha.10
     </div>
     <!-- Crosshair -->
     <div id="crosshair"></div>
@@ -204,7 +204,7 @@
         <div id="pause-header">
             <h1 class="title-1">Wonder</h1>
             <h1 class="title-2">World</h1>
-            <p class="version">Version Alpha.8.4.3</p>
+            <p class="version">Version Alpha.10</p>
         </div>
         <div id="pause-buttons">
             <button id="pause-resume">Resume</button>
@@ -217,7 +217,7 @@
 
 
 
-    <!-- Load Three.js from a CDN -->
+    <!-- Load Three.js -->
     <script src="./lib/js/utils/three.min.js"></script>
 
     <!-- ImprovedNoise with Random Permutation -->
@@ -227,22 +227,14 @@
     const loadingText = [
         "You can fly by double-tapping the jump button.",
         "You will be able to toggle between game modes by pressing the 'O' key.",
-        "You can now double-tap the 'W' key to run faster.",
-        "What kind of builds will you create, today?",
-        "In Wonder World Version Alpha.8.4.3, you can only place dirt.",
-        "Did you know, most of Wonder World's code was written by AI?",
+        "Did you know: Wonder World took 10 different Alpha versions to make properly?",
         "<span style='font-size: 7px;'>If you can read this, you're probably sitting too close to the screen!</span>",  
-        "Pressing buttons does things. Some of them useful, some of them… interesting.",  
-        "Wonder World is made with magic, hope, and at least two gallons of coffee.",  
-        "Tried to make the water wet. Turns out, it was already wet.",  
-        "Every update adds something. What that something is… remains classified.",  
+        "Making water wet...",  
         "Achievement Unlocked: You found the loading screen!",  
-        "Physics? Who needs physics in a game world?",  
-        "Remember: If something is acting weird, it's not a bug. It's a feature.",  
-        "Breaking news: Wonder World still doesn't have ray tracing. But hey, the sun works!",
+        "Physics? Who needs physics in a game?",  
     ]
 
-    // A watcher object to watch for certain things.
+    // A watcher object to watch for special things.
     // As of right now, it only watches for game packs.
 
     /*
@@ -290,32 +282,17 @@
                 isDefault: packName === "**:Default:**",
                 basePath: packName === "**:Default:**" ? "data/" : `gamePacks/${packName}/`,
                 blocks: {},
-                biomes: {},
                 textures: {},
+                biomes: {},
                 structures: {},
                 config: {}
             };
-            
-            // Load pack configuration
-            try {
-                packData.config = await this.loadPackConfig(packData.basePath);
-            } catch (error) {
-                console.warn(`No config found for pack "${packName}"`);
-                packData.config = {};
-            }
             
             // Load blocks data
             try {
                 packData.blocks = await this.loadPackBlocks(packData.basePath);
             } catch (error) {
                 console.warn(`No blocks data found for pack "${packName}"`);
-            }
-            
-            // Load biomes data
-            try {
-                packData.biomes = await this.loadPackBiomes(packData.basePath);
-            } catch (error) {
-                console.warn(`No biomes data found for pack "${packName}"`);
             }
             
             // Load textures data
@@ -325,22 +302,8 @@
                 console.warn(`No textures data found for pack "${packName}"`);
             }
             
-            // Load structures data
-            try {
-                packData.structures = await this.loadPackStructures(packData.basePath);
-            } catch (error) {
-                console.warn(`No structures data found for pack "${packName}"`);
-            }
-            
             this.loadedPacks.set(packName, packData);
             return packData;
-        },
-        
-        // Load pack configuration
-        async loadPackConfig(basePath) {
-            const response = await fetch(`${basePath}json/config.json`);
-            if (!response.ok) throw new Error(`Config not found at ${basePath}json/config.json`);
-            return await response.json();
         },
         
         // Load blocks data
@@ -350,24 +313,10 @@
             return await response.json();
         },
         
-        // Load biomes data
-        async loadPackBiomes(basePath) {
-            const response = await fetch(`${basePath}json/biomes.json`);
-            if (!response.ok) throw new Error(`Biomes not found at ${basePath}json/biomes.json`);
-            return await response.json();
-        },
-        
         // Load textures data
         async loadPackTextures(basePath) {
             const response = await fetch(`${basePath}json/textures.json`);
             if (!response.ok) throw new Error(`Textures not found at ${basePath}json/textures.json`);
-            return await response.json();
-        },
-        
-        // Load structures data
-        async loadPackStructures(basePath) {
-            const response = await fetch(`${basePath}json/structures.json`);
-            if (!response.ok) throw new Error(`Structures not found at ${basePath}json/structures.json`);
             return await response.json();
         },
         
@@ -455,53 +404,7 @@
             });
         }
         
-        // Merge and apply biomes data
-        const packedBiomes = GamePackLoader.getMergedData('biomes');
-        if (packedBiomes && packedBiomes.biomes && Object.keys(packedBiomes.biomes).length > 0) {
-            console.log(`Loaded ${Object.keys(packedBiomes.biomes).length} biomes from game packs`);
-            
-            // Populate BIOMES object with biome data
-            Object.keys(packedBiomes.biomes).forEach(biomeName => {
-                const biomeData = packedBiomes.biomes[biomeName];
-                BIOMES[biomeName] = biomeData;
-                console.log(`Loaded biome ${biomeName}:`, biomeData);
-            });
-        }
-        
-        // Merge and apply structures data
-        const packedStructures = GamePackLoader.getMergedData('structures');
-        if (packedStructures && packedStructures.structures && Object.keys(packedStructures.structures).length > 0) {
-            console.log(`Loaded ${Object.keys(packedStructures.structures).length} structures from game packs`);
-            
-            // Note: StructureGenerators functions remain hardcoded as they contain complex logic
-            // Only structure metadata is loaded from GamePacks
-        }
-        
-        // Apply configuration data
-        const packedConfig = GamePackLoader.getMergedData('config');
-        if (packedConfig && packedConfig.config) {
-            const config = packedConfig.config;
-            
-            // Apply terrain configuration
-            if (config.terrain) {
-                if (config.terrain.geologicalFormations) {
-                    Object.assign(GEOLOGICAL_FORMATIONS, config.terrain.geologicalFormations);
-                }
-                
-                if (config.terrain.noiseConfig) {
-                    Object.assign(NOISE_CONFIG, config.terrain.noiseConfig);
-                }
-                
-                if (config.terrain.terrainBounds) {
-                    Object.assign(TERRAIN_BOUNDS, config.terrain.terrainBounds);
-                }
-            }
-            
-            // Apply world settings
-            if (config.world) {
-                if (config.world.defaultBiome) defaultBiome = config.world.defaultBiome;
-            }
-        }
+        // No biomes/structures/config used in simplified build
         
         // Log summary
         const packInfo = GamePackLoader.getPackInfo();
@@ -519,15 +422,7 @@
             return GamePackLoader.getMergedData('blocks');
         },
         
-        // Get all available biomes from all packs
-        getAllBiomes() {
-            return GamePackLoader.getMergedData('biomes');
-        },
-        
-        // Get all available structures from all packs
-        getAllStructures() {
-            return GamePackLoader.getMergedData('structures');
-        },
+        // Biomes/structures not used
         
         // Check if a specific pack has certain data
         packHasData(packName, dataType) {
@@ -556,15 +451,12 @@
                     console.log(`\n--- ${packName} ---`);
                     console.log(`Path: ${packData.basePath}`);
                     console.log(`Blocks: ${Object.keys(packData.blocks).length}`);
-                    console.log(`Biomes: ${Object.keys(packData.biomes).length}`);
-                    console.log(`Structures: ${Object.keys(packData.structures).length}`);
-                    console.log(`Config keys: ${Object.keys(packData.config)}`);
+                    console.log(`Textures: ${Object.keys(packData.textures).length}`);
                 }
             }
             console.log("\n=== MERGED DATA ===");
             console.log(`Total Blocks: ${Object.keys(GamePackLoader.getMergedData('blocks')).length}`);
-            console.log(`Total Biomes: ${Object.keys(GamePackLoader.getMergedData('biomes')).length}`);
-            console.log(`Total Structures: ${Object.keys(GamePackLoader.getMergedData('structures')).length}`);
+            console.log(`Total Textures: ${Object.keys(GamePackLoader.getMergedData('textures')).length}`);
         }
     };
     
@@ -583,9 +475,9 @@
             return state / (m - 1);
         };
     }
-    // Replace your ImprovedNoise implementation with:
+    // Replace your ImprovedNoise implementation with a non-seeded version (seed removed):
     var ImprovedNoise = function () {
-        var seededRandom = seededRandomGenerator(worldSeed);
+        var seededRandom = Math.random;
         var p = [];
         // Use a seeded random permutation
         for (var i = 0; i < 256; i++) {
@@ -648,55 +540,38 @@
 
     <!-- Main Game Script -->
     <script>
-    /********************************************
-     * World Data
-     ********************************************/
-    // Global World Constants & Variables
-    const CHUNK_SIZE = 16;         // Blocks per side of a chunk
-    const WORLD_HEIGHT = 416;        // Vertical blocks per chunk
-    const WORLD_CHUNK_COUNT = 200;   // World chunk grid
-    const VISIBLE_RADIUS = 20;        // Load chunks within a certain radius
+    /* Simplified build: no biome/config systems */
+    // Core constants and globals
+    const CHUNK_SIZE = 16;
+    const WORLD_HEIGHT = 256;
+    const WORLD_CHUNK_COUNT = 256; // logical world bound for clamping (large but finite)
+    const VISIBLE_RADIUS = 6;      // how many chunks around player to keep loaded
+    const MAX_CHUNKS_PER_FRAME = 4; // throttle worker requests per frame
 
-    // Chunk Loading Queue
-    const MAX_CHUNKS_PER_FRAME = 5; // Maximum chunks to load per frame
-    const chunkWorker = new Worker('./lib/js/workers/chunkWorker.js'); // A separate worker script for chunk generation
-    const pendingChunks = new Map(); // Track chunks being processed by worker
-
-    // The LOADING_REQUIREMENTS constant is used to define how the loading screen will behave.
-    // "Local" means it only need to load and render chunks within the visible radius.
-    // "Global" means it needs to preload all chunks in the world and render the local ones.
-    const LOADING_REQUIREMENTS = "Local"; // NOT IMPLEMENTED YET
-
-    // Load saved world data if available before chunk generation
-    const loadSavedWorldPromise = (async function loadSavedWorld() {
-        try {
-            const response = await fetch('/savedWorlds/alphaWorld/world.json');
-            if (response.ok) {
-                const data = await response.json();
-                chunkDataStore = data;
-                console.log('Loaded saved world data.');
-            } else {
-                console.log('No saved world file found. Generating new world.');
-            }
-        } catch (err) {
-            console.error('Error loading saved world:', err);
-        }
-    })();
-
-    // START: Loading Screen Logic
-    let isLoading = true;
-    let forcePlay = false; // Force play to skip loading screen (for testing)
+    // Loading screen elements and state
     const loadingScreenEl = document.getElementById('loading-screen');
     const loadingBarEl = document.getElementById('loading-progress-bar');
     const loadingTextEl = document.getElementById('loading-text');
+    const minLoadingTime = 1200; // ms
+    const loadingStartTime = Date.now();
     let loadedInitialChunksCount = 0;
-    let loadingStartTime = Date.now();
-    let minLoadingTime = 2000; // Minimum loading time in ms
+    const INITIAL_LOAD_RADIUS = 2; // matches the 5x5 grid in updateChunks during loading
+    const totalInitialChunksToLoad = (INITIAL_LOAD_RADIUS * 2 + 1) ** 2; // 25
     let hasStartedChunkLoading = false;
-    
-    // We'll use a dynamic loading approach - load a minimum number of chunks around the player
-    let totalInitialChunksToLoad = Math.min(25, (2 * 3 + 1) ** 2); // Load at least 25 chunks or 7x7 area
-    
+    let isLoading = true;
+    let forcePlay = false; // set true to skip waiting for all initial chunks
+
+    // Input state map
+    const KEY = {};
+
+    // Chunk tracking / worker
+    const pendingChunks = new Map();
+    var chunkWorker = new Worker('./lib/js/workers/chunkWorker.js');
+
+    // Caches and helpers
+    const groundHeightCache = new Map();
+    // If there is no saved world system, resolve immediately
+    const loadSavedWorldPromise = Promise.resolve();
     function showRandomLoadingText() {
         const idx = Math.floor(Math.random() * loadingText.length);
         loadingTextEl.innerHTML = loadingText[idx];
@@ -712,9 +587,8 @@
         
         // Complete loading when either:
         // - We've fully loaded the planned initial chunks, OR
-        // - Minimum time elapsed and at least 1 chunk is ready, OR
         // - Force play is enabled
-        if (chunkProgress >= 1 || (timePassed >= minLoadingTime && loadedInitialChunksCount >= 1) || forcePlay) {
+        if (chunkProgress >= 1 || forcePlay) {
             loadingTextEl.innerHTML = "Loading complete!";
             clearInterval(loadingInterval);
             setTimeout(completeLoading, 500);
@@ -762,71 +636,7 @@
      *   Coordinates "$[yMin]-[yMax]": The number of blocks will be a random number between min and max.
      *********************************************/
     // BIOMES - Will be populated from GamePack data
-    const BIOMES = {};
-
-    // Configuration objects will be populated by GamePack data
-    const GEOLOGICAL_FORMATIONS = {};
-    const TERRAIN_BOUNDS = {};
-    const NOISE_CONFIG = {};
-
-    // === ADVANCED TERRAIN GENERATION FUNCTIONS ===
-
-    // Multi-octave noise generator with domain warping
-    class AdvancedNoiseGenerator {
-        constructor(seed) {
-            this.seed = seed;
-            this.noiseGen = new ImprovedNoise(); // Use existing noise generator
-        }
-
-        // Generate multi-octave noise
-        multiOctaveNoise(x, z, config) {
-            let value = 0;
-            let amplitude = config.amplitude;
-            let frequency = config.frequency;
-            let maxValue = 0;
-
-            for (let i = 0; i < config.octaves; i++) {
-                value += this.noiseGen.noise(x * frequency, 0, z * frequency) * amplitude;
-                maxValue += amplitude;
-                amplitude *= 0.5;
-                frequency *= 2.0;
-            }
-
-            return value / maxValue;
-        }
-
-        // Domain-warped noise for more organic patterns
-        domainWarpedNoise(x, z, config, warpStrength = 50) {
-            const warpX = this.noiseGen.noise(x * 0.01, 0, z * 0.01) * warpStrength;
-            const warpZ = this.noiseGen.noise(x * 0.01, 100, z * 0.01) * warpStrength;
-            
-            return this.multiOctaveNoise(x + warpX, z + warpZ, config);
-        }
-
-        // Ridged noise for mountain ridges and valleys
-        ridgedNoise(x, z, config) {
-            let value = 0;
-            let amplitude = config.amplitude;
-            let frequency = config.frequency;
-
-            for (let i = 0; i < config.octaves; i++) {
-                let n = Math.abs(this.noiseGen.noise(x * frequency, 0, z * frequency));
-                n = 1.0 - n;
-                n = n * n;
-                value += n * amplitude;
-                amplitude *= 0.5;
-                frequency *= 2.0;
-            }
-
-            return value;
-        }
-    }
-
-    // Removed unused main-thread biome helper functions (keeping worker-owned versions)
-
-    // Removed unused getNearbyBiomes and calculateSophisticatedHeight
-
-    // Removed unused shouldPlaceStructure
+    // Remove advanced terrain generation systems and seed usage
 
     // Add a mapping for block type strings
     // BLOCK_TYPES will be populated by GamePack data
@@ -846,100 +656,12 @@
         return `Unknown (${blockId})`;
     }
 
-    // Structure Generators - Methods for generating different structures
-    const StructureGenerators = {
-        // Generate a tree at the given position
-        tree: function(data, x, y, z) {
-            const height = 4 + Math.floor(Math.random() * 3); // Tree height 4-6 blocks
-            const leafRadius = 2;
-            
-            // Generate trunk
-            for (let dy = 0; dy < height; dy++) {
-                if (y + dy >= WORLD_HEIGHT) break;
-                data[x][y + dy][z] = BLOCK_TYPES.wood;
-            }
-            
-            // Generate leaves
-            for (let dx = -leafRadius; dx <= leafRadius; dx++) {
-                for (let dy = -1; dy <= 2; dy++) {
-                    for (let dz = -leafRadius; dz <= leafRadius; dz++) {
-                        const dist = Math.sqrt(dx * dx + dz * dz);
-                        if (dist <= leafRadius + 0.5) {
-                            const lx = x + dx;
-                            const ly = y + height - 1 + dy;
-                            const lz = z + dz;
-                            if (lx >= 0 && lx < CHUNK_SIZE && 
-                                ly >= 0 && ly < WORLD_HEIGHT && 
-                                lz >= 0 && lz < CHUNK_SIZE) {
-                                if (data[lx][ly][lz] === 0) {
-                                    data[lx][ly][lz] = BLOCK_TYPES.leaves;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        
-        // Generate a house at the given position
-        house: function(data, x, y, z) {
-            const width = 5;
-            const length = 7;
-            const height = 4;
-            
-            // Check if we have enough space in chunk
-            if (x + width >= CHUNK_SIZE || z + length >= CHUNK_SIZE) return;
-            if (y + height >= WORLD_HEIGHT) return;
-            
-            // Generate floor
-            for (let dx = 0; dx < width; dx++) {
-                for (let dz = 0; dz < length; dz++) {
-                    data[x + dx][y][z + dz] = BLOCK_TYPES.stone;
-                }
-            }
-            
-            // Generate walls
-            for (let dy = 1; dy < height; dy++) {
-                for (let dx = 0; dx < width; dx++) {
-                    for (let dz = 0; dz < length; dz++) {
-                        // Skip if it's not a wall block
-                        if (dx > 0 && dx < width - 1 && dz > 0 && dz < length - 1) continue;
-                        data[x + dx][y + dy][z + dz] = BLOCK_TYPES.wood;
-                    }
-                }
-            }
-            
-            // Generate roof
-            for (let dx = 0; dx < width; dx++) {
-                for (let dz = 0; dz < length; dz++) {
-                    data[x + dx][y + height][z + dz] = BLOCK_TYPES.wood;
-                }
-            }
-            
-            // Add a door (2 blocks high)
-            const doorX = x + Math.floor(width / 2);
-            const doorZ = z;
-            data[doorX][y + 1][doorZ] = 0;
-            data[doorX][y + 2][doorZ] = 0;
-            
-            // Add windows
-            const windowY = y + 2;
-            // Front windows
-            data[x + 1][windowY][z] = 0;
-            data[x + width - 2][windowY][z] = 0;
-            // Back windows
-            data[x + 1][windowY][z + length - 1] = 0;
-            data[x + width - 2][windowY][z + length - 1] = 0;
-            // Side windows
-            data[x][windowY][z + Math.floor(length / 2)] = 0;
-            data[x + width - 1][windowY][z + Math.floor(length / 2)] = 0;
-        }
-    };
+    // Remove structure generators in simplified build
 
     // blockColors will be populated by GamePack data
     const blockColors = {};
 
-    let defaultBiome = "plains"; // Default biome to use if none is specified
+    // Remove default biome usage
 
     // Texture support: preload textures for blocks that specify an image path in blockColors
     const textureLoader = new THREE.TextureLoader();
@@ -956,17 +678,7 @@
             CHUNK_SIZE,
             WORLD_HEIGHT,
             BLOCK_TYPES,
-            BIOMES,
-            worldSeed,
-            blockColors: getSerializableBlockProperties(blockColors),
-            GEOLOGICAL_FORMATIONS,
-            TERRAIN_BOUNDS,
-            NOISE_CONFIG,
-            AdvancedNoiseGenerator: AdvancedNoiseGenerator.toString(),
-            StructureGenerators: {
-                tree: StructureGenerators.tree.toString(),
-                house: StructureGenerators.house.toString()
-            }
+            blockColors: getSerializableBlockProperties(blockColors)
         };
     }
 
@@ -1062,9 +774,8 @@
     const playerRadius = 0.3;       
     const jumpImpulse = 13; 
     const stepHeight = 1; // how high the player can step up (one slab-ish)
-    const skin = 0.001;     // small inset to avoid floating-point sticking
-    const worldSeed = 2003;    
-    const worldSettings = {weatherCycle: false, timeCycle: true};    
+    const skin = 0.001;     // small inset to avoid floating-point sticking (keep me)
+    // Remove world seed (no longer used)
 
     // Global variables for rendering, scene, and input.
     let scene, renderer;
@@ -1173,85 +884,7 @@
     let chunkUpdatesLastTime = performance.now();
     let showDebugInfo = true; // Toggle for debug info display
 
-    // ===== MINECRAFT-STYLE BIOME DISTRIBUTION SYSTEM =====
-    
-    // Temperature and humidity noise generators
-    class BiomeNoiseGenerator {
-        constructor(seed) {
-            this.seed = seed;
-            this.noiseGen = new ImprovedNoise();
-        }
-        
-        // Get temperature at world position (returns value 0-100 representing Fahrenheit)
-        getTemperature(x, z) {
-            // Base temperature with large-scale variation
-            const baseTemp = this.noiseGen.noise(x * 0.0008, 0, z * 0.0008);
-            // Add some smaller variation
-            const variation = this.noiseGen.noise(x * 0.003, 100, z * 0.003) * 0.3;
-            
-            // Map from -1..1 to 0..100 Fahrenheit (with emphasis on temperate zones)
-            const temp = ((baseTemp + variation) * 0.5 + 0.5) * 100;
-            return temp;
-        }
-        
-        // Get humidity at world position (returns value 0-100 representing percentage)
-        getHumidity(x, z) {
-            // Base humidity with different scale than temperature
-            const baseHumidity = this.noiseGen.noise(x * 0.0012, 200, z * 0.0012);
-            // Add variation
-            const variation = this.noiseGen.noise(x * 0.004, 300, z * 0.004) * 0.3;
-            
-            // Map from -1..1 to 0..100 percentage
-            const humidity = ((baseHumidity + variation) * 0.5 + 0.5) * 100;
-            return humidity;
-        }
-    }
-    
-    const biomeNoise = new BiomeNoiseGenerator(worldSeed);
-    
-    // Select biome based on temperature and humidity (Minecraft-style)
-    function selectBiomeByClimate(x, z) {
-        const temperature = biomeNoise.getTemperature(x, z);
-        const humidity = biomeNoise.getHumidity(x, z);
-        
-        // Get all available biomes
-        const availableBiomes = Object.keys(BIOMES);
-        if (availableBiomes.length === 0) {
-            console.warn("No biomes available!");
-            return null;
-        }
-        
-        // Find the closest matching biome based on temperature and humidity
-        let closestBiome = availableBiomes[0];
-        let closestDistance = Infinity;
-        
-        for (const biomeName of availableBiomes) {
-            const biome = BIOMES[biomeName];
-            if (!biome.temperature || !biome.humidity) continue;
-            
-            // Calculate Euclidean distance in climate space
-            const tempDiff = temperature - biome.temperature;
-            const humidDiff = humidity - biome.humidity;
-            const distance = Math.sqrt(tempDiff * tempDiff + humidDiff * humidDiff);
-            
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestBiome = biomeName;
-            }
-        }
-        
-        return closestBiome;
-    }
-    
-    // Get biome with smoothing for better transitions
-    function getCurrentBiome(x, z) {
-        return selectBiomeByClimate(x, z);
-    }
-    
-    // Legacy function for compatibility (same as getCurrentBiome)
-    function selectBiomeWithSeed(x, z, seed) {
-        return selectBiomeByClimate(x, z);
-    }
+    // Remove biome distribution system and related helpers
 
     // Function to update game info display
     function updateGameInfo() {
@@ -1271,10 +904,8 @@
         const chunkX = Math.floor(playerPos.x / CHUNK_SIZE);
         const chunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
         
-        // Get current biome
-        const currentBiome = getCurrentBiome(playerPos.x, playerPos.z);
-        const biomeData = BIOMES[currentBiome];
-        const biomeDisplayName = currentBiome.charAt(0).toUpperCase() + currentBiome.slice(1).replace(/_/g, ' ');
+    // Simplified build: no biome info
+    const biomeDisplayName = 'N/A';
         
         // Create status indicators
         const statusIndicators = [];
@@ -1286,7 +917,7 @@
         const infoElement = document.getElementById('info');
         infoElement.innerHTML = `
             <div style="background: rgba(0,0,0,0.7); padding: 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; font-family: 'Courier New', monospace; max-width: 280px;">
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.8.4.3</div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.10</div>
                 
                 <div style="margin-bottom: 6px;">
                     <div style="color: #88ff88;">Performance:</div>
@@ -1319,20 +950,13 @@
                     </div>
                 </div>
                 
-                <div style="margin-bottom: 6px;">
-                    <div style="color: #90EE90;">Biome:</div>
-                    <div style="margin-left: 10px;">
-                        <span style="color: #98FB98;">${biomeDisplayName}</span><br>
-                        Height: ${biomeData ? biomeData.baseHeight : 'N/A'}±${biomeData ? biomeData.heightVariation : 'N/A'}<br>
-                        Temp: ${biomeData ? biomeData.temperature : 'N/A'}°F | Humidity: ${biomeData ? biomeData.humidity : 'N/A'}%<br>
-                    </div>
-                </div>
+                
                 
                 <div style="margin-bottom: 6px;">
                     <div style="color: #ff88ff;">Game:</div>
                     <div style="margin-left: 10px;">
                         Mode: ${gameMode}<br>
-                        Weather: <span style="color: #add8e6;">${weather}</span>${weather === 'stormy' ? (lightningFlash && lightningFlash.active ? ' <span style="color:#ffff88;">(lightning)</span>' : '') : ''}<br>
+                        Weather: <span style="color: #add8e6;">clear</span><br>
                         Entities: ${entities}
                     </div>
                 </div>
@@ -1354,542 +978,8 @@
         `;
     }
 
-    /*
-    Sky Colors:
-    clear sky: 0x88ccff
-    overcast: 0x888888
-    stormy: 0x555555
-    lightning: 0xaaaaaa
-    */
-   const skyColors = {
-        clear: 0x88ccff,       // Clear sky
-        overcast: 0x888888,   // Overcast sky
-        stormy: 0x343434,     // Stormy sky
-        lightning: 0xaaaaaa    // Lightning sky
-    };
-
-    let skyColor = skyColors.stormy; // Current sky color (derived from weather)
-    let weather = "clear"; // Current weather condition
-    const KEY = {}
-
-    // Transition state for smooth sky/fog changes
-    const weatherTransition = { active: false, elapsed: 0, duration: 3.0 };
-    const skyColorCurrent = new THREE.Color();
-    const skyColorTargetColor = new THREE.Color();
-    let fogNearCurrent = 60, fogNearTarget = 60;
-    let fogFarCurrent = 600, fogFarTarget = 600;
-
-    // Apply sky/fog based on weather (starts a smooth transition)
-    function applyWeatherVisuals() {
-        // Choose sky color per weather
-        switch (weather) {
-            case "clear":
-                skyColor = skyColors.clear;
-                break;
-            case "rain":
-                skyColor = skyColors.overcast;
-                break;
-            case "stormy":
-                skyColor = skyColors.stormy;
-                break;
-            case "lightning":
-                skyColor = skyColors.lightning;
-                break;
-            case "snow":
-                skyColor = skyColors.overcast;
-                break;
-            default:
-                skyColor = skyColors.clear;
-        }
-
-        // Fog ranges by weather (near, far)
-        let fogNear = 5, fogFar = 200;
-        if (weather === "clear") {
-            // Low fog: very far, subtle
-            fogNear = 60; fogFar = 300;
-        } else if (weather === "rain") {
-            // A little fog
-            fogNear = 12; fogFar = 140;
-        } else if (weather === "stormy") {
-            // Dense fog
-            fogNear = 3; fogFar = 60;
-        } else if (weather === "snow") {
-            // Snow tends to reduce visibility moderately
-            fogNear = 10; fogFar = 120;
-        } else if (weather === "lightning") {
-            fogNear = 8; fogFar = 100;
-        }
-
-        if (scene) {
-            // If fog is not initialized yet, set instantly and seed transition state
-            if (!scene.fog) {
-                const initial = new THREE.Color(skyColor);
-                scene.background = initial.clone();
-                scene.fog = new THREE.Fog(initial.getHex(), fogNear, fogFar);
-                // Seed current/target to the same to avoid a visible first transition
-                skyColorCurrent.copy(initial);
-                skyColorTargetColor.copy(initial);
-                fogNearCurrent = fogNearTarget = fogNear;
-                fogFarCurrent = fogFarTarget = fogFar;
-                weatherTransition.active = false;
-                weatherTransition.elapsed = 0;
-            } else {
-                // Start a transition from current to target
-                if (scene.background && scene.background.isColor) {
-                    skyColorCurrent.copy(scene.background);
-                } else {
-                    skyColorCurrent.set(skyColor);
-                }
-                skyColorTargetColor.set(skyColor);
-                fogNearCurrent = scene.fog.near;
-                fogFarCurrent = scene.fog.far;
-                fogNearTarget = fogNear;
-                fogFarTarget = fogFar;
-                weatherTransition.active = true;
-                weatherTransition.elapsed = 0;
-            }
-        }
-    }
-
-    // Optional: change weather at runtime
-    function setWeather(newWeather) {
-        weather = newWeather;
-        applyWeatherVisuals();
-        updatePrecipitationForWeather();
-        // Manage lightning scheduling based on stormy state
-        if (weather === 'stormy') startLightning(); else stopLightning();
-
-        // Ensure precipitation material matches current weather without requiring a full recreate
-        if (rainMaterial) {
-            if (weather === 'snow') {
-                rainMaterial.color.setHex(0xffffff);
-                rainMaterial.transparent = false;
-                rainMaterial.opacity = 1.0;
-                rainMaterial.needsUpdate = true;
-            } else if (weather === 'rain' || weather === 'stormy') {
-                rainMaterial.color.setHex(0xaaaaaa);
-                rainMaterial.transparent = true;
-                rainMaterial.opacity = 0.3;
-                rainMaterial.needsUpdate = true;
-            }
-        }
-    }
-
-    // Update smooth transition each frame
-    function updateWeatherTransition(delta) {
-        if (!scene || !scene.fog || !weatherTransition.active) return;
-        weatherTransition.elapsed += delta;
-        const t = Math.min(weatherTransition.elapsed / weatherTransition.duration, 1);
-        // Smoothstep easing
-        const te = t * t * (3 - 2 * t);
-        // Lerp sky color
-        const lerped = skyColorCurrent.clone().lerp(skyColorTargetColor, te);
-        if (scene.background && scene.background.isColor) {
-            scene.background.copy(lerped);
-        } else {
-            scene.background = lerped.clone();
-        }
-        // Lerp fog color and distances
-        scene.fog.color.copy(lerped);
-        scene.fog.near = fogNearCurrent + (fogNearTarget - fogNearCurrent) * te;
-        scene.fog.far = fogFarCurrent + (fogFarTarget - fogFarCurrent) * te;
-        if (t >= 1) {
-            weatherTransition.active = false;
-            skyColor = skyColorTargetColor.getHex();
-        }
-    }
-
-    // Manage precipitation objects when weather changes
-    function updatePrecipitationForWeather() {
-        const needsPrecip = (weather === "rain" || weather === "stormy" || weather === "snow");
-        if (needsPrecip) {
-            if (!rain) createRain();
-        } else {
-            if (rain) removeRain();
-        }
-    }
-
-    function removeRain() {
-        if (!rain) return;
-        scene.remove(rain);
-        if (rainGeometry) rainGeometry.dispose();
-        if (rainMaterial) rainMaterial.dispose();
-        rain = null; rainGeometry = null; rainMaterial = null;
-    }
-
-    // Random weather scheduler (equal chance, variable intervals)
-    let weatherCycleTimer = null;
-    let weatherMinInterval = 30; // seconds
-    let weatherMaxInterval = 75; // seconds
-    const WEATHER_OPTIONS = [ 'clear', 'rain', 'stormy', 'snow' ];
-
-    function chooseRandomWeather(/* current */) {
-        const i = Math.floor(Math.random() * WEATHER_OPTIONS.length);
-        return WEATHER_OPTIONS[i];
-    }
-
-    function scheduleNextWeatherChange() {
-        const secs = weatherMinInterval + Math.random() * Math.max(1, (weatherMaxInterval - weatherMinInterval));
-        weatherCycleTimer = setTimeout(() => {
-            const next = chooseRandomWeather(weather);
-            setWeather(next);
-            scheduleNextWeatherChange();
-        }, secs * 1000);
-    }
-
-    function startRandomWeather(minSeconds = 30, maxSeconds = 75) {
-        stopWeatherCycle();
-        weatherMinInterval = Math.max(5, minSeconds);
-        weatherMaxInterval = Math.max(weatherMinInterval + 1, maxSeconds);
-        // Trigger an immediate randomized change from current, then schedule
-        const next = chooseRandomWeather(weather);
-        setWeather(next);
-        scheduleNextWeatherChange();
-    }
-
-    function stopWeatherCycle() {
-        if (weatherCycleTimer) {
-            clearTimeout(weatherCycleTimer);
-            weatherCycleTimer = null;
-        }
-    }
-
-    // Lightning support during stormy weather
-    let lightningTimer = null;
-    let lightningLight = null;
-    const lightningFlash = { active: false, elapsed: 0, duration: 0.3, strength: 3.5, pos: new THREE.Vector3() };
-
-    function startLightning() {
-        if (lightningTimer) return; // already scheduled
-        scheduleLightning();
-    }
-    function stopLightning() {
-        if (lightningTimer) { clearTimeout(lightningTimer); lightningTimer = null; }
-        if (lightningLight) lightningLight.intensity = 0;
-        lightningFlash.active = false;
-        lightningFlash.elapsed = 0;
-    }
-    function scheduleLightning() {
-        if (weather !== 'stormy') return;
-        const delay = 5 + Math.random() * 15; // 5-20s
-        lightningTimer = setTimeout(() => {
-            triggerLightningFlash();
-            // Re-schedule only if still stormy
-            lightningTimer = null;
-            if (weather === 'stormy') scheduleLightning();
-        }, delay * 1000);
-    }
-    function triggerLightningFlash() {
-        if (!yawObject) return;
-        // Position flash somewhat around the player
-        const px = yawObject.position.x;
-        const py = yawObject.position.y;
-        const pz = yawObject.position.z;
-        lightningFlash.pos.set(
-            px + (Math.random() * 80 - 40),
-            py + 60 + Math.random() * 30,
-            pz + (Math.random() * 80 - 40)
-        );
-        lightningFlash.strength = 3 + Math.random() * 6; // 3-9
-        lightningFlash.duration = 0.22 + Math.random() * 0.2; // ~0.22-0.42s
-        lightningFlash.elapsed = 0;
-        lightningFlash.active = true;
-        if (lightningLight) lightningLight.position.copy(lightningFlash.pos);
-    }
-    function updateLightning(delta) {
-        if (!lightningLight) return;
-        if (!lightningFlash.active) { lightningLight.intensity = 0; return; }
-        lightningFlash.elapsed += delta;
-        const t = lightningFlash.elapsed;
-        const k = 14; // decay
-        let I = lightningFlash.strength * Math.exp(-k * t);
-        if (t > 0.08) I += lightningFlash.strength * 0.6 * Math.exp(-k * (t - 0.08));
-        lightningLight.intensity = I;
-        // Keep light near intended position above player for realism
-        if (yawObject && t < lightningFlash.duration) {
-            // slight drift
-            lightningLight.position.lerpVectors(lightningLight.position, lightningFlash.pos, 0.2);
-        }
-        if (t >= lightningFlash.duration) {
-            lightningFlash.active = false;
-            lightningLight.intensity = 0;
-        }
-    }
-
-    // Rain effect variables and functions
-    let rain, rainGeometry, rainMaterial;
-    const rainCount = 400; // Number of rain drops
-    // Cache highest solid Y for world columns to avoid repeated scans
-    const groundHeightCache = new Map(); // key: "x,z" -> y
-    const MAX_GROUND_HEIGHT_CACHE_SIZE = 10000; // Limit cache size to prevent memory issues
-    let rainGroundHeights = null; // Float32Array per-drop cached ground height
-
-    function getGroundHeightCached(bx, bz) {
-        const key = `${bx},${bz}`;
-        if (groundHeightCache.has(key)) return groundHeightCache.get(key);
-        
-        // Clean cache if it gets too large (performance optimization)
-        if (groundHeightCache.size > MAX_GROUND_HEIGHT_CACHE_SIZE) {
-            // Remove oldest 20% of entries
-            const entriesToRemove = Math.floor(MAX_GROUND_HEIGHT_CACHE_SIZE * 0.2);
-            let removed = 0;
-            for (const key of groundHeightCache.keys()) {
-                groundHeightCache.delete(key);
-                if (++removed >= entriesToRemove) break;
-            }
-        }
-        
-        // Compute from chunk data if available
-        const cx = Math.floor(bx / CHUNK_SIZE);
-        const cz = Math.floor(bz / CHUNK_SIZE);
-        const chunkKey = `${cx},${cz}`;
-        const chunkData = chunkDataStore[chunkKey];
-        let y = 0;
-        if (chunkData) {
-            const localX = bx - cx * CHUNK_SIZE;
-            const localZ = bz - cz * CHUNK_SIZE;
-            // If heightMap exists, use it directly
-            if (chunkData.heightMap instanceof Uint16Array) {
-                const idx = localZ * CHUNK_SIZE + localX;
-                y = chunkData.heightMap[idx] || 0;
-            } else {
-                // Fallback: scan downward from top; stop at first non-air
-                for (let yy = WORLD_HEIGHT - 1; yy >= 0; yy--) {
-                    if (chunkData[localX] && chunkData[localX][yy] && chunkData[localX][yy][localZ] !== 0) {
-                        y = yy;
-                        break;
-                    }
-                }
-            }
-        } else {
-            // Queue load and assume sea level-ish ground until loaded
-            queueChunkLoad(cx, cz);
-            y = 0;
-        }
-        groundHeightCache.set(key, y);
-        return y;
-    }
-
-    // Rain drop lengths stored in an object for efficient access
-    const dropLengths = {
-        normal: 2, // Normal rain drop length
-        storm: 4,  // Storm rain drop length
-        snow: 1    // Snow drop length
-    };
-
-    const range = 25; // Local rain area size around player
-    const dropSpeed = {
-        normal: 100, // Normal rain speed
-        storm: 125,  // Storm rain speed
-    snow: 8      // Snow speed (very slow fall for snow)
-    };
-
-    // Per-drop snow streak lengths (initialized when snow starts)
-    let snowLengths = null;
-
-    function createRain() {
-        const positions = new Float32Array(rainCount * 6);
-        const px = yawObject.position.x;
-        const pz = yawObject.position.z;
-
-        let dropLength = dropLengths.normal;
-        if (weather === "stormy") {
-            dropLength = dropLengths.storm; // Use longer drops in stormy weather
-        }
-        else if (weather === "snow"){
-            // Initialize per-drop snow lengths on first creation
-            if (!snowLengths || snowLengths.length !== rainCount) {
-                snowLengths = new Float32Array(rainCount);
-                for (let i = 0; i < rainCount; i++) {
-                    snowLengths[i] = 0.6 + Math.random() * 0.8; // 0.6 - 1.4
-                }
-            }
-        }
-
-        for (let i = 0; i < rainCount; i++) {
-            const x = px + (Math.random() * range - range / 2);
-            const y = Math.random() * 200;
-            const z = pz + (Math.random() * range - range / 2);
-            const idx = i * 6;
-            positions[idx] = x;
-            positions[idx + 1] = y;
-            positions[idx + 2] = z;
-            positions[idx + 3] = x;
-            if (weather === 'snow' && snowLengths) {
-                positions[idx + 4] = y - snowLengths[i];
-            } else {
-                positions[idx + 4] = y - dropLength;
-            }
-            positions[idx + 5] = z;
-        }
-    rainGeometry = new THREE.BufferGeometry();
-    const posAttr = new THREE.BufferAttribute(positions, 3);
-    if (THREE.DynamicDrawUsage) posAttr.setUsage(THREE.DynamicDrawUsage);
-    rainGeometry.setAttribute('position', posAttr);
-        // Opaque white for snow, translucent grey for rain/storm
-        const isSnowMat = weather === 'snow';
-        rainMaterial = new THREE.LineBasicMaterial({
-            color: isSnowMat ? 0xffffff : 0xaaaaaa,
-            transparent: !isSnowMat,
-            opacity: isSnowMat ? 1.0 : 0.3
-        });
-    rain = new THREE.LineSegments(rainGeometry, rainMaterial);
-    rain.frustumCulled = false;
-    rain.castShadow = false;
-    rain.receiveShadow = false;
-    // Add rain to scene
-    scene.add(rain);
-
-        // Initialize per-drop ground heights from cache
-        rainGroundHeights = new Float32Array(rainCount);
-        for (let i = 0; i < rainCount; i++) {
-            const idx = i * 6;
-            const bx = Math.floor(positions[idx]);
-            const bz = Math.floor(positions[idx + 2]);
-            rainGroundHeights[i] = getGroundHeightCached(bx, bz);
-        }
-    }
-
-
-    function updateRain(delta) {
-        if (!rain) return;
-
-
-        const positions = rainGeometry.attributes.position.array;
-        const rainCount = positions.length / 6;
-        const px = yawObject.position.x;
-        const pz = yawObject.position.z;
-
-    let speed = dropSpeed.normal; // Default speed
-        if (weather === "stormy") {
-            speed = dropSpeed.storm; // Use faster speed in stormy weather
-        }
-        else if (weather === "snow") {
-            speed = dropSpeed.snow; // Use slower speed for snow
-        }
-
-        let dropLength = dropLengths.normal;
-        if (weather === "stormy") {
-            dropLength = dropLengths.storm; // Use longer drops in stormy weather
-        }
-        else if (weather === "snow"){
-            // Use per-drop shrinking snowLengths, not a fixed dropLength
-        }
-        
-
-        const isSnowNow = weather === 'snow';
-        if (isSnowNow && (!snowLengths || snowLengths.length !== rainCount)) {
-            // Initialize lengths when switching into snow without recreating geometry
-            snowLengths = new Float32Array(rainCount);
-            for (let i = 0; i < rainCount; i++) snowLengths[i] = 0.6 + Math.random() * 0.8;
-            if (rainMaterial) {
-                rainMaterial.color.setHex(0xffffff);
-                rainMaterial.transparent = false;
-                rainMaterial.opacity = 1.0;
-                rainMaterial.needsUpdate = true;
-            }
-        }
-
-        for (let i = 0; i < rainCount; i++) {
-            const idx = i * 6;
-            // Move drop down
-            positions[idx + 1] -= delta * speed;
-            // Keep precipitation centered around the player: if a drop drifts too far, wrap it to the opposite side
-            const halfRange = range / 2;
-            const dxp = positions[idx] - px;
-            const dzp = positions[idx + 2] - pz;
-            let needsReposition = false;
-            let newX = positions[idx];
-            let newZ = positions[idx + 2];
-            
-            // Wrap around horizontally if too far from player
-            if (Math.abs(dxp) > halfRange + 2 || Math.abs(dzp) > halfRange + 2) {
-                needsReposition = true;
-                // Wrap to opposite side while maintaining relative offset
-                if (dxp > halfRange + 2) {
-                    // Too far in positive X, wrap to negative X side
-                    newX = px - halfRange + (dxp - (halfRange + 2));
-                } else if (dxp < -(halfRange + 2)) {
-                    // Too far in negative X, wrap to positive X side
-                    newX = px + halfRange + (dxp + (halfRange + 2));
-                }
-                
-                if (dzp > halfRange + 2) {
-                    // Too far in positive Z, wrap to negative Z side
-                    newZ = pz - halfRange + (dzp - (halfRange + 2));
-                } else if (dzp < -(halfRange + 2)) {
-                    // Too far in negative Z, wrap to positive Z side
-                    newZ = pz + halfRange + (dzp + (halfRange + 2));
-                }
-                
-                // Keep current Y position (don't reset height)
-                const currentY = positions[idx + 1];
-                positions[idx] = newX;
-                positions[idx + 2] = newZ;
-                positions[idx + 3] = newX;
-                positions[idx + 5] = newZ;
-                
-                // Update end position based on current drop length
-                if (isSnowNow && snowLengths) {
-                    positions[idx + 4] = currentY - snowLengths[i];
-                } else {
-                    positions[idx + 4] = currentY - dropLength;
-                }
-                
-                // Update cached ground height for this drop at its new column
-                if (rainGroundHeights) {
-                    const bx = Math.floor(newX);
-                    const bz = Math.floor(newZ);
-                    rainGroundHeights[i] = getGroundHeightCached(bx, bz);
-                }
-                continue; // skip collision this frame for relocated drop
-            }
-            if (isSnowNow && snowLengths) {
-                // Shrink the streak length as it falls, but clamp to a small minimum
-                snowLengths[i] = Math.max(0.12, snowLengths[i] - 0.6 * delta);
-                positions[idx + 4] = positions[idx + 1] - snowLengths[i];
-            } else {
-                positions[idx + 4] = positions[idx + 1] - dropLength;
-            }
-            // Cheap collision using cached ground height
-            const x = positions[idx];
-            const z = positions[idx + 2];
-            const yEnd = positions[idx + 4];
-            const groundY = rainGroundHeights ? rainGroundHeights[i] : 0;
-            if (yEnd <= groundY + 0.02) {
-                const splashY = groundY + 0.02;
-                if (!isSnowNow) {
-                    makeSplash(x, splashY, z, 0xaaaaaa);
-                }
-                // Reset position above player
-                const newX = px + (Math.random() * range - range / 2);
-                const newZ = pz + (Math.random() * range - range / 2);
-                const newY = Math.random() * 200 + 100;
-                // Update start and end positions
-                positions[idx] = newX;
-                positions[idx + 2] = newZ;
-                positions[idx + 3] = newX;
-                positions[idx + 5] = newZ;
-                positions[idx + 1] = newY;
-                if (isSnowNow && snowLengths) {
-                    snowLengths[i] = 0.6 + Math.random() * 0.8;
-                    positions[idx + 4] = newY - snowLengths[i];
-                } else {
-                    positions[idx + 4] = newY - dropLength;
-                }
-
-                // Update cached ground height for this drop at its new column
-                if (rainGroundHeights) {
-                    const bx = Math.floor(newX);
-                    const bz = Math.floor(newZ);
-                    rainGroundHeights[i] = getGroundHeightCached(bx, bz);
-                }
-            }
-        }
-    rainGeometry.attributes.position.needsUpdate = true;
-    }
-
-    // Particle-based splash effect
+    /* Sky color is static in simplified build */
+    // Particle-based splash effect (kept local for future use, but not used now)
     const splashParticles = []; // active particle objects
     const splashLifetime = 0.6; // seconds (total life for each particle)
     const particlesPerSplash = 2;
@@ -2339,7 +1429,7 @@
             return;
         }
         
-        // Request geometry data from the worker
+        // Request geometry data from the worker; worker will reply via onmessage
         pendingChunks.set(key, true);
         chunkWorker.postMessage({
             cx, 
@@ -2347,61 +1437,6 @@
             requestGeometry: true,
             constants: getWorkerConstants()
         });
-        // The worker will compute and return the geometry
-        const group = new THREE.Group();
-        
-        // Add opaque meshes first
-        if (geoms.opaque) {
-            const opaqueMaterial = new THREE.MeshLambertMaterial({
-                vertexColors: true,
-                side: THREE.FrontSide,
-                transparent: false
-            });
-            const opaqueMesh = new THREE.Mesh(geoms.opaque, opaqueMaterial);
-            opaqueMesh.castShadow = true;
-            opaqueMesh.receiveShadow = true;
-            group.add(opaqueMesh);
-        }
-        
-        // Add textured meshes next, sorting by transparency
-        for (const texturedMesh of geoms.textured) {
-            const blockName = texturedMesh.texture.userData?.blockName;
-            const blockProps = blockColors[blockName] || {};
-            
-            const material = new THREE.MeshLambertMaterial({
-                map: texturedMesh.texture,
-                transparent: true,
-                side: blockProps.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
-                opacity: blockProps.transparency || 1,
-                alphaTest: blockProps.alphaTest || 0.1,
-                depthWrite: blockProps.transparency === 1 // Only write to depth buffer for fully opaque blocks
-            });
-            const mesh = new THREE.Mesh(texturedMesh.geometry, material);
-            const isTransparent = (blockProps.transparency ?? 1) < 1 || blockProps.seeThrough;
-            mesh.castShadow = !isTransparent;
-            mesh.receiveShadow = true;
-            mesh.renderOrder = blockProps.transparency < 1 ? 1 : 0; // Render transparent blocks last
-            group.add(mesh);
-        }
-        
-        // Add transparent meshes last
-        if (geoms.transparent) {
-            const transparentMaterial = new THREE.MeshLambertMaterial({
-                vertexColors: true,
-                side: blockColors.water.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
-                transparent: true,
-                depthWrite: false,
-                opacity: blockColors.water.transparency
-            });
-            const mesh = new THREE.Mesh(geoms.transparent, transparentMaterial);
-            mesh.castShadow = false;
-            mesh.receiveShadow = true;
-            mesh.renderOrder = 1; // Render after opaque objects
-            group.add(mesh);
-        }
-        
-        scene.add(group);
-        loadedChunks[key] = group;
     }
 
     function unloadChunk(cx, cz) {
@@ -2441,7 +1476,7 @@
         // Don't remove the old mesh immediately - let it stay visible until new geometry is ready
         // The worker response handler will replace it when the new geometry arrives
         
-        // Request geometry data from the worker
+        // Request geometry data from the worker; worker will reply via onmessage
         pendingChunks.set(key, true);
         chunkWorker.postMessage({
             cx, 
@@ -2455,63 +1490,6 @@
         if (isPriority) {
             priorityChunks.delete(key);
         }
-        const group = new THREE.Group();
-
-        // Add opaque meshes first
-        if (geoms.opaque) {
-            const opaqueMaterial = new THREE.MeshLambertMaterial({
-                vertexColors: true,
-                side: THREE.FrontSide,
-                transparent: false
-            });
-            const mesh = new THREE.Mesh(geoms.opaque, opaqueMaterial);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.renderOrder = 0;
-            group.add(mesh);
-        }
-
-        // Add textured meshes next, sorting by transparency
-        for (const texturedMesh of geoms.textured) {
-            const blockName = texturedMesh.texture.userData?.blockName;
-            const blockProps = blockColors[blockName] || {};
-            
-            const material = new THREE.MeshLambertMaterial({
-                map: texturedMesh.texture,
-                transparent: blockProps.transparency < 1,
-                side: blockProps.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
-                opacity: blockProps.transparency || 1,
-                alphaTest: blockProps.alphaTest || 0.1,
-                depthWrite: blockProps.transparency === 1 // Only write to depth buffer for fully opaque blocks
-            });
-            const mesh = new THREE.Mesh(texturedMesh.geometry, material);
-            const isTransparent = (blockProps.transparency ?? 1) < 1 || blockProps.seeThrough;
-            mesh.castShadow = !isTransparent;
-            mesh.receiveShadow = true;
-            mesh.renderOrder = blockProps.transparency < 1 ? 2 : 0; // Higher render order for transparent blocks
-            group.add(mesh);
-        }
-
-        // Add transparent meshes last with highest render order
-        if (geoms.transparent) {
-            const transparentMaterial = new THREE.MeshLambertMaterial({
-                vertexColors: true,
-                side: blockColors.water.sideRendering === "both" ? THREE.DoubleSide : THREE.FrontSide,
-                transparent: true,
-                depthWrite: false,
-                depthTest: true,
-                opacity: blockColors.water.transparency,
-                alphaTest: blockColors.water.alphaTest || 0.1
-            });
-            const mesh = new THREE.Mesh(geoms.transparent, transparentMaterial);
-            mesh.castShadow = false;
-            mesh.receiveShadow = true;
-            mesh.renderOrder = 2; // Ensure water renders after other transparent objects
-            group.add(mesh);
-        }
-
-        scene.add(group);
-        loadedChunks[key] = group;
     }
 
     // Helper function to strip texture data from block properties
@@ -2546,9 +1524,7 @@
             cx: cx,
             cz: cz,
             modifiedChunk: chunkData,
-            constants: {
-                blockColors: getSerializableBlockProperties(blockColors)
-            }
+            constants: getWorkerConstants()
         });
     }
 
@@ -2693,7 +1669,7 @@
             geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
             geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
             geom.computeVertexNormals();
-            const props = blockColors.water;
+            const props = blockColors.water || { sideRendering: 'one', transparency: 0.6, alphaTest: 0.1 };
             const mat = new THREE.MeshLambertMaterial({
                 vertexColors: true,
                 transparent: true,
@@ -3023,8 +1999,8 @@
         }
         
     scene = new THREE.Scene();
-    // Set background/fog based on weather
-    applyWeatherVisuals();
+    // Set a static clear sky background, no fog
+    scene.background = new THREE.Color(0x88ccff);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -3055,10 +2031,7 @@
     sunLight.shadow.normalBias = 0.35;
     scene.add(sunLight);
 
-    // Lightning light (off by default, enabled during stormy flashes)
-    lightningLight = new THREE.PointLight(0x99ccff, 0, 0, 2.0);
-    lightningLight.castShadow = false;
-    scene.add(lightningLight);
+    // Removed lightning light in simplified build
 
     // Add block highlight box
     highlightMesh = createHighlightBox();
@@ -3081,12 +2054,7 @@
         cameraEffect.add(camera);
         yawObject.add(cameraEffect);
         scene.add(yawObject);
-        // Initialize precipitation after player is positioned and kick off weather cycle
-        updatePrecipitationForWeather();
-        // Start random weather changes with equal chance and variable interval
-        if (worldSettings.weatherCycle) {
-            startRandomWeather(30, 75);
-        }
+        // Weather/precipitation removed in simplified build
         
         // Preload visible chunks so the world is ready.
         updateChunks();
@@ -3348,7 +2316,7 @@
             const infoElement = document.getElementById('info');
             infoElement.innerHTML = `
                 <div style="background: rgba(0,0,0,0.7); padding: 8px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace;">
-                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.8.4.3</div>
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.10</div>
                     <div style="margin-top: 4px; font-size: 10px; color: #cccccc;">Press F3 to toggle debug info</div>
                 </div>
             `;
@@ -3369,43 +2337,14 @@
                 if (flyDown) { yawObject.position.y -= 30 * delta; }
             } else {
                 if (!isFlying) {
-                    const inWater = isInWater();
+                    // Normal physics only (water physics removed)
+                    velocity.x -= velocity.x * 10 * delta;
+                    velocity.z -= velocity.z * 10 * delta;
+                    velocity.y -= 9.8 * 5 * delta; // gravity
 
-                    if (inWater) {
-                        // Water physics
-                        const waterMovementFactor = 0.4;
-                        const waterGravity = 9.8 * 1.5;
-                        const waterDrag = 0.8;
-
-                        velocity.x -= velocity.x * 3 * delta;
-                        velocity.z -= velocity.z * 3 * delta;
-
-                        if (velocity.y < -waterGravity) {
-                            velocity.y = THREE.MathUtils.lerp(velocity.y, -waterGravity, delta * 3);
-                        } else {
-                            velocity.y -= waterGravity * delta;
-                        }
-
-                        if (KEY["Jump"]) {
-                            velocity.y = Math.min(velocity.y + 20 * delta, 8);
-                        } else {
-                            velocity.y = Math.max(velocity.y - 10 * delta, -4);
-                        }
-
-                        const accel = getMovementAcceleration(delta);
-                        velocity.x += accel.x * waterMovementFactor;
-                        velocity.z += accel.z * waterMovementFactor;
-                        velocity.multiplyScalar(waterDrag);
-                    } else {
-                        // Normal physics
-                        velocity.x -= velocity.x * 10 * delta;
-                        velocity.z -= velocity.z * 10 * delta;
-                        velocity.y -= 9.8 * 5 * delta; // gravity
-
-                        const accel = getMovementAcceleration(delta);
-                        velocity.x += accel.x;
-                        velocity.z += accel.z;
-                    }
+                    const accel = getMovementAcceleration(delta);
+                    velocity.x += accel.x;
+                    velocity.z += accel.z;
 
                     // Use new collision mover
                     const desired = new THREE.Vector3(
@@ -3451,14 +2390,8 @@
             overlay.style.display = "none";
         }
 
-        // New water wavy camera effect:
-        if (getBlockAt(Math.floor(yawObject.position.x), Math.floor(yawObject.position.y + 0.8 * playerHeight), Math.floor(yawObject.position.z)) === BLOCK_TYPES.water) {
-            // Apply oscillation to cameraEffect rotation for a wavy effect
-            cameraEffect.rotation.x = Math.sin(time * 0.005) * 0.02;
-            cameraEffect.rotation.y = Math.cos(time * 0.005) * 0.02;
-        } else {
-            cameraEffect.rotation.set(0, 0, 0);
-        }
+        // Remove underwater camera wobble effect (keep overlay only)
+        cameraEffect.rotation.set(0, 0, 0);
 
         // Smooth camera step-up easing: temporarily lower camera and ease back
         if (cameraStepLag > 0) {
@@ -3468,15 +2401,7 @@
         // Apply camera vertical offset (lowered by lag amount)
         camera.position.y = 0.8 * playerHeight - cameraStepLag;
     
-    // Smoothly interpolate sky/fog toward target for current weather
-    updateWeatherTransition(delta);
-
-    // Update precipitation (rain/storm/snow)
-        if (weather === "rain" || weather === "stormy" || weather === "snow") {
-            updateRain(delta);
-        }
-        // Update splash effects
-        updateSplashes(delta);
+    // Weather and precipitation removed
 
         // Update lighting: keep sun above the player and tune intensity by weather
         if (sunLight && yawObject) {
@@ -3486,23 +2411,10 @@
             sunLight.position.set(px + 40, py + 80, pz + 40);
             sunLight.target.position.set(px, py, pz);
             if (!sunLight.target.parent) scene.add(sunLight.target);
-            if (weather === 'clear') {
-                sunLight.intensity = 1.0;
-                if (hemiLight) hemiLight.intensity = 0.45;
-            } else if (weather === 'rain') {
-                sunLight.intensity = 0.7;
-                if (hemiLight) hemiLight.intensity = 0.35;
-            } else if (weather === 'stormy' || weather === 'snow') {
-                sunLight.intensity = 0.45;
-                if (hemiLight) hemiLight.intensity = 0.3;
-            } else if (weather === 'lightning') {
-                sunLight.intensity = 1.2;
-                if (hemiLight) hemiLight.intensity = 0.5;
-            }
+            sunLight.intensity = 1.0;
+            if (hemiLight) hemiLight.intensity = 0.45;
         }
-
-    // Lightning flash updates (only active in stormy)
-    updateLightning(delta);
+    
 
         // Block hover detection and highlighting
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -3606,9 +2518,7 @@
                     console.log(`=== ${packName} ===`);
                     console.log("Path:", packData.basePath);
                     console.log("Blocks:", Object.keys(packData.blocks));
-                    console.log("Biomes:", Object.keys(packData.biomes));
-                    console.log("Structures:", Object.keys(packData.structures));
-                    console.log("Config:", packData.config);
+                    console.log("Textures:", Object.keys(packData.textures));
                     return packData;
                 } else {
                     console.log(`Pack "${packName}" not found`);
@@ -3681,8 +2591,7 @@
         showMergedData(dataType = 'all') {
             if (dataType === 'all') {
                 console.log("Blocks:", GamePackLoader.getMergedData('blocks'));
-                console.log("Biomes:", GamePackLoader.getMergedData('biomes'));
-                console.log("Structures:", GamePackLoader.getMergedData('structures'));
+                console.log("Textures:", GamePackLoader.getMergedData('textures'));
             } else {
                 console.log(`${dataType}:`, GamePackLoader.getMergedData(dataType));
             }

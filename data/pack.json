@@ -1,7 +1,7 @@
 {
     "packName": "**:Default:**",
     "version": "1.0.0",
-    "description": "Default Wonder World game data pack containing all core game content including blocks, biomes, structures and textures.",
+    "description": "Default Wonder World base pack containing core blocks and textures only.",
     "author": "Wonder World Developer",
     "priority": 0,
     "enabled": true,
@@ -12,15 +12,12 @@
     },
     "resources": {
         "blocks": "json/blocks.json",
-        "biomes": "json/biomes.json", 
-        "structures": "json/structures.json",
-        "textures": "json/textures.json",
-        "config": "json/config.json"
+        "textures": "json/textures.json"
     },
     "metadata": {
         "created": "2025-08-08",
         "lastModified": "2025-08-08",
-        "tags": ["default", "core", "base-content"],
+        "tags": ["default", "core", "base-content", "**:Default:**"],
         "category": "base-game"
     }
 }
