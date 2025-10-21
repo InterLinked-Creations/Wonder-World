@@ -1,0 +1,143 @@
+{
+    "config": {
+        "world": {
+            "chunkSize": 16,
+            "worldHeight": 256,
+            "worldChunkCount": 64,
+            "seaLevel": 50,
+            "defaultBiome": "plains"
+        },
+        "terrain": {
+            "noiseConfig": {
+                "continental": {
+                    "frequency": 0.0008,
+                    "amplitude": 80,
+                    "octaves": 3
+                },
+                "regional": {
+                    "frequency": 0.003,
+                    "amplitude": 40,
+                    "octaves": 4
+                },
+                "local": {
+                    "frequency": 0.01,
+                    "amplitude": 20,
+                    "octaves": 5
+                },
+                "detail": {
+                    "frequency": 0.04,
+                    "amplitude": 8,
+                    "octaves": 3
+                },
+                "micro": {
+                    "frequency": 0.12,
+                    "amplitude": 3,
+                    "octaves": 2
+                },
+                "biome_warp": {
+                    "frequency": 0.002,
+                    "amplitude": 200,
+                    "octaves": 2
+                },
+                "formation": {
+                    "frequency": 0.006,
+                    "amplitude": 30,
+                    "octaves": 3
+                },
+                "multinoise": {
+                    "continentalness": { "frequency": 0.0008, "amplitude": 1, "octaves": 6 },
+                    "erosion": { "frequency": 0.002, "amplitude": 1, "octaves": 4 },
+                    "peaksValleys": { "frequency": 0.0032, "amplitude": 300, "octaves": 4, "ridged": true },
+                    "temperature": { "frequency": 0.0009, "amplitude": 1, "octaves": 3, "warp": 140 },
+                    "humidity": { "frequency": 0.0011, "amplitude": 1, "octaves": 3, "warp": 140 }
+                },
+                "terrainShaper": {
+                    "mountainScale": 130,
+                    "pvExponent": 1.35,
+                    "erosionMin": 0.1,
+                    "erosionWeight": 1,
+                    "baseSpanBelow": 35,
+                    "baseSpanAbove": 100
+                }
+            },
+            "geologicalFormations": {
+                "VALLEY": {
+                    "elevation_modifier": -0.3,
+                    "width_factor": 1.8,
+                    "depth_variance": 0.4
+                },
+                "RIDGE": {
+                    "elevation_modifier": 0.4,
+                    "width_factor": 0.6,
+                    "height_variance": 0.3
+                },
+                "PLATEAU_EDGE": {
+                    "elevation_modifier": 0.8,
+                    "cliff_steepness": 2.5,
+                    "edge_falloff": 0.2
+                },
+                "RIVER_VALLEY": {
+                    "elevation_modifier": -0.6,
+                    "meandering": 1.2,
+                    "depth_variance": 0.5
+                },
+                "MESA": {
+                    "elevation_modifier": 1.0,
+                    "top_flatness": 0.9,
+                    "edge_steepness": 3.0
+                },
+                "DEPRESSION": {
+                    "elevation_modifier": -0.4,
+                    "size_factor": 1.4,
+                    "edge_softness": 0.7
+                },
+                "ESCARPMENT": {
+                    "elevation_modifier": 0.6,
+                    "steepness": 2.8,
+                    "length_factor": 2.0
+                }
+            },
+            "terrainBounds": {
+                "min_elevation": 0,
+                "max_elevation": 250,
+                "sea_level": 50,
+                "adaptive_min": true,
+                "adaptive_max": true,
+                "safety_margin": 20
+            }
+        },
+        "rendering": {
+            "viewDistance": 8,
+            "fogDistance": 12,
+            "backgroundColor": "#88ccff",
+            "ambientLightColor": "#ffffff",
+            "ambientLightIntensity": 0.4,
+            "directionalLightColor": "#ffffff",
+            "directionalLightIntensity": 0.8,
+            "shadows": true,
+            "antialiasing": true
+        },
+        "performance": {
+            "maxChunksPerFrame": 3,
+            "chunkProcessingTimeBudget": 16,
+            "frustumCulling": true,
+            "backfaceCulling": true,
+            "levelOfDetail": false
+        },
+        "gameplay": {
+            "playerHeight": 1.8,
+            "playerSpeed": 5.0,
+            "jumpHeight": 7.0,
+            "gravity": 30.0,
+            "reach": 5.0,
+            "blockBreakTime": 0.3
+        },
+        "debug": {
+            "showChunkBorders": false,
+            "showBiomeInfo": true,
+            "showPerformanceStats": false,
+            "logChunkGeneration": false,
+            "logBiomeSelection": false
+        }
+    }
+}

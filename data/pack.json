@@ -1,0 +1,23 @@
+{
+    "packName": "**:Default:**",
+    "version": "1.0.0",
+    "description": "Default Wonder World base pack containing core blocks and textures only.",
+    "author": "Wonder World Developer",
+    "priority": 0,
+    "enabled": true,
+    "dependencies": [],
+    "compatibility": {
+        "gameVersion": "1.0.0",
+        "apiVersion": "1.0.0"
+    },
+    "resources": {
+        "blocks": "json/blocks.json",
+        "textures": "json/textures.json"
+    },
+    "metadata": {
+        "created": "2025-08-08",
+        "lastModified": "2025-08-08",
+        "tags": ["default", "core", "base-content", "**:Default:**"],
+        "category": "base-game"
+    }
+}
