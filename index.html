@@ -1,563 +1,2162 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <title>Minecraft-Style World with Multiple Block Types and Trees</title>
+    <title>Wonder World (Alpha)</title>
     <style>
-      body {
+    body {
         margin: 0;
         overflow: hidden;
-      }
-      #info {
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    #info {
         position: absolute;
         top: 0;
         width: 100%;
         color: #fff;
         font-family: sans-serif;
-        background: rgba(0, 0, 0, 0.5);
         padding: 10px;
         z-index: 1;
-      }
+    }
+    /* Crosshair styles */
+    #crosshair {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        z-index: 1000;
+        pointer-events: none;
+    }
+    #crosshair::before,
+    #crosshair::after {
+        content: '';
+        position: absolute;
+        background: rgba(255, 255, 255, 0.8);
+    }
+    #crosshair::before {
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        transform: translateY(-50%);
+    }
+    #crosshair::after {
+        left: 50%;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        transform: translateX(-50%);
+    }
+    /* New underwater overlay styles */
+    #underwater-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(51,102,255,0.5); /* blue transparent overlay */
+        pointer-events: none;
+        z-index: 999;
+        display: none;
+    }
+    /* START: Loading Screen CSS */
+    #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #fff;
+        font-family: sans-serif;
+        z-index: 10000;
+    }
+    #loading-progress-container {
+        width: 70%;
+        max-width: 400px;
+        height: 20px;
+        background: #333;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    #loading-progress-bar {
+        width: 0%;
+        height: 100%;
+        background: #4caf50;
+        transition: width 0.3s;
+    }
+    #loading-text {
+        font-size: 14px;
+        text-align: center;
+        padding: 0 20px;
+        min-height: 20px;
+    }
+    /* END: Loading Screen CSS */
+
+    /* START: Pause Screen CSS */
+    #pause-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+    }
+    #pause-header {
+        width: 100%;
+        background: gray;
+        padding: 20px;
+        text-align: center;
+    }
+    #pause-header .title-1 {
+        font-size: 48px;
+        color: red;
+        margin: 0;
+    }
+    #pause-header .title-2 {
+        font-size: 48px;
+        color: blue;
+        margin: 0;
+    }
+    #pause-header .version {
+        font-size: 20px;
+        color: green;
+        margin: 0;
+    }
+    #pause-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    #pause-buttons button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    /* END: Pause Screen CSS */
+
+    /* Loading Screen Styles */
+    #loadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 9999;
+    }
+    #progressBar {
+      width: 50%;
+      height: 20px;
+      background: #444;
+      margin-top: 20px;
+    }
+    #progressBarInner {
+      width: 0%;
+      height: 100%;
+      background: #0f0;
+    }
+    #loadingTip {
+      margin-top: 10px;
+      font-style: italic;
+    }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div id="info">
-      Click to play – WASD to move, SPACE to jump. Left click to break, right click to place blocks.
+        Version: Alpha.10
     </div>
-    <!-- Load Three.js from a CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Crosshair -->
+    <div id="crosshair"></div>
+    <!-- New underwater overlay element -->
+    <div id="underwater-overlay"></div>
+
+    <!-- START: Loading Screen HTML -->
+    <div id="loading-screen">
+        <div id="loading-progress-container">
+            <div id="loading-progress-bar"></div>
+        </div>
+        <div id="loading-text"></div>
+    </div>
+    <!-- END: Loading Screen HTML -->
+
+    <!-- START: Pause Screen HTML -->
+    <div id="pause-screen">
+        <div id="pause-header">
+            <h1 class="title-1">Wonder</h1>
+            <h1 class="title-2">World</h1>
+            <p class="version">Version Alpha.10</p>
+        </div>
+        <div id="pause-buttons">
+            <button id="pause-resume">Resume</button>
+            <button id="pause-settings">Settings</button>
+            <button id="pause-save">Save World</button>
+            <button id="pause-quit">Quit World</button>
+        </div>
+    </div>
+    <!-- END: Pause Screen HTML -->
+
+
+
+    <!-- Load Three.js -->
+    <script src="./lib/js/utils/three.min.js"></script>
 
     <!-- ImprovedNoise with Random Permutation -->
     <script>
-      var ImprovedNoise = function () {
+    const none = null;
+
+    const loadingText = [
+        "You can fly by double-tapping the jump button.",
+        "You will be able to toggle between game modes by pressing the 'O' key.",
+        "Did you know: Wonder World took 10 different Alpha versions to make properly?",
+        "<span style='font-size: 7px;'>If you can read this, you're probably sitting too close to the screen!</span>",  
+        "Making water wet...",  
+        "Achievement Unlocked: You found the loading screen!",  
+        "Physics? Who needs physics in a game?",  
+    ]
+
+    // A watcher object to watch for special things.
+    // As of right now, it only watches for game packs.
+
+    /*
+       The **:Default:** pack must always be somewhere in this array. If it isn't, it will be added.
+       All pack data must be stored in the 'gamePacks' directory except for the **:Default:** pack.
+       If there were a pack named "NewPack", it's name would be added to this array,
+       and the data would be stored in the 'gamePacks/NewPack' directory.
+       The **:Default:** pack's data is in the data folder.
+    */
+    const WATCHER = {
+        gamePacks: ["**:Default:**"]
+    };
+    
+    // Game Pack Data Collection System
+    const GamePackLoader = {
+        loadedPacks: new Map(),
+        
+        // Initialize and load all game packs
+        async initialize() {
+            console.log("Initializing GamePack system...");
+            
+            // Ensure **:Default:** pack is in the array
+            if (!WATCHER.gamePacks.includes("**:Default:**")) {
+                WATCHER.gamePacks.unshift("**:Default:**");
+            }
+            
+            // Load all game packs
+            for (const packName of WATCHER.gamePacks) {
+                try {
+                    await this.loadGamePack(packName);
+                } catch (error) {
+                    console.error(`Failed to load game pack "${packName}":`, error);
+                }
+            }
+            
+            console.log(`Loaded ${this.loadedPacks.size} game packs:`, Array.from(this.loadedPacks.keys()));
+        },
+        
+        // Load a specific game pack
+        async loadGamePack(packName) {
+            console.log(`Loading game pack: ${packName}`);
+            
+            const packData = {
+                name: packName,
+                isDefault: packName === "**:Default:**",
+                basePath: packName === "**:Default:**" ? "data/" : `gamePacks/${packName}/`,
+                blocks: {},
+                textures: {},
+                biomes: {},
+                structures: {},
+                config: {}
+            };
+            
+            // Load blocks data
+            try {
+                packData.blocks = await this.loadPackBlocks(packData.basePath);
+            } catch (error) {
+                console.warn(`No blocks data found for pack "${packName}"`);
+            }
+            
+            // Load textures data
+            try {
+                packData.textures = await this.loadPackTextures(packData.basePath);
+            } catch (error) {
+                console.warn(`No textures data found for pack "${packName}"`);
+            }
+            
+            this.loadedPacks.set(packName, packData);
+            return packData;
+        },
+        
+        // Load blocks data
+        async loadPackBlocks(basePath) {
+            const response = await fetch(`${basePath}json/blocks.json`);
+            if (!response.ok) throw new Error(`Blocks not found at ${basePath}json/blocks.json`);
+            return await response.json();
+        },
+        
+        // Load textures data
+        async loadPackTextures(basePath) {
+            const response = await fetch(`${basePath}json/textures.json`);
+            if (!response.ok) throw new Error(`Textures not found at ${basePath}json/textures.json`);
+            return await response.json();
+        },
+        
+        // Get data from a specific pack
+        getPackData(packName) {
+            return this.loadedPacks.get(packName);
+        },
+        
+        // Get merged data from all packs (with priority order)
+        getMergedData(dataType) {
+            const merged = {};
+            
+            // Apply packs in order (later packs override earlier ones)
+            for (const packName of WATCHER.gamePacks) {
+                const packData = this.loadedPacks.get(packName);
+                if (packData && packData[dataType]) {
+                    Object.assign(merged, packData[dataType]);
+                }
+            }
+            
+            return merged;
+        },
+        
+        // Get all available pack names
+        getPackNames() {
+            return Array.from(this.loadedPacks.keys());
+        },
+        
+        // Check if a pack is loaded
+        isPackLoaded(packName) {
+            return this.loadedPacks.has(packName);
+        },
+        
+        // Reload a specific pack
+        async reloadPack(packName) {
+            if (this.loadedPacks.has(packName)) {
+                this.loadedPacks.delete(packName);
+            }
+            return await this.loadGamePack(packName);
+        },
+        
+        // Get pack info for debugging
+        getPackInfo() {
+            const info = {};
+            for (const [packName, packData] of this.loadedPacks) {
+                info[packName] = {
+                    isDefault: packData.isDefault,
+                    basePath: packData.basePath,
+                    hasConfig: Object.keys(packData.config).length > 0,
+                    blockCount: Object.keys(packData.blocks).length,
+                    biomeCount: Object.keys(packData.biomes).length,
+                    textureCount: Object.keys(packData.textures).length,
+                    structureCount: Object.keys(packData.structures).length
+                };
+            }
+            return info;
+        }
+    };
+    
+    // Function to apply game pack data to existing game systems
+    function applyGamePackData() {
+        console.log("Applying game pack data to game systems...");
+        
+        // Merge and apply blocks data
+        const packedBlocks = GamePackLoader.getMergedData('blocks');
+        if (packedBlocks && packedBlocks.blocks && Object.keys(packedBlocks.blocks).length > 0) {
+            console.log(`Loaded ${Object.keys(packedBlocks.blocks).length} blocks from game packs`);
+            
+            // Populate BLOCK_TYPES with block IDs
+            Object.keys(packedBlocks.blocks).forEach(blockName => {
+                const blockData = packedBlocks.blocks[blockName];
+                if (blockData.id) {
+                    BLOCK_TYPES[blockName] = blockData.id;
+                    BLOCK_NAMES[blockData.id] = blockName; // Reverse mapping for hover info
+                }
+            });
+            
+            // Populate blockColors with block properties
+            Object.keys(packedBlocks.blocks).forEach(blockName => {
+                const blockData = packedBlocks.blocks[blockName];
+                if (blockData.properties) {
+                    blockColors[blockName] = blockData.properties;
+                    console.log(`Loaded block ${blockName}:`, blockColors[blockName]);
+                }
+            });
+        }
+        
+        // No biomes/structures/config used in simplified build
+        
+        // Log summary
+        const packInfo = GamePackLoader.getPackInfo();
+        console.log("Game Pack Summary:", packInfo);
+        console.log("Game pack data applied successfully");
+        
+        // Load textures after all block data is ready
+        loadBlockTextures();
+    }
+    
+    // Utility functions for game pack management
+    const GamePackUtils = {
+        // Get all available blocks from all packs
+        getAllBlocks() {
+            return GamePackLoader.getMergedData('blocks');
+        },
+        
+        // Biomes/structures not used
+        
+        // Check if a specific pack has certain data
+        packHasData(packName, dataType) {
+            const packData = GamePackLoader.getPackData(packName);
+            return packData && packData[dataType] && Object.keys(packData[dataType]).length > 0;
+        },
+        
+        // Get combined configuration from all packs
+        getCombinedConfig() {
+            const combined = {};
+            for (const packName of WATCHER.gamePacks) {
+                const packData = GamePackLoader.getPackData(packName);
+                if (packData && packData.config) {
+                    Object.assign(combined, packData.config);
+                }
+            }
+            return combined;
+        },
+        
+        // Debug function to list all loaded content
+        debugPackContents() {
+            console.log("=== GAME PACK DEBUG INFO ===");
+            for (const packName of WATCHER.gamePacks) {
+                const packData = GamePackLoader.getPackData(packName);
+                if (packData) {
+                    console.log(`\n--- ${packName} ---`);
+                    console.log(`Path: ${packData.basePath}`);
+                    console.log(`Blocks: ${Object.keys(packData.blocks).length}`);
+                    console.log(`Textures: ${Object.keys(packData.textures).length}`);
+                }
+            }
+            console.log("\n=== MERGED DATA ===");
+            console.log(`Total Blocks: ${Object.keys(GamePackLoader.getMergedData('blocks')).length}`);
+            console.log(`Total Textures: ${Object.keys(GamePackLoader.getMergedData('textures')).length}`);
+        }
+    };
+    
+    // Add a seeded random generator function:
+    function seededRandomGenerator(seed) {
+        var m = 0x80000000; // 2^31
+        var a = 1103515245;
+        var c = 12345;
+        var g = 7499755 * seed / c;
+        var u = c - seed * g;
+
+        var state = seed ? seed : Math.floor(g * m % seed);
+
+        return function() {
+            state = (a * (state ) + c) % m;
+            return state / (m - 1);
+        };
+    }
+    // Replace your ImprovedNoise implementation with a non-seeded version (seed removed):
+    var ImprovedNoise = function () {
+        var seededRandom = Math.random;
         var p = [];
-        // Use a random permutation
+        // Use a seeded random permutation
         for (var i = 0; i < 256; i++) {
-          p[i] = Math.floor(Math.random() * 256);
+            p[i] = Math.floor(seededRandom() * 256);
         }
         var permutation = new Array(512);
         for (var i = 0; i < 256; i++) {
-          permutation[i] = p[i];
-          permutation[i + 256] = p[i];
+            permutation[i] = p[i];
+            permutation[i + 256] = p[i];
         }
         function fade(t) {
-          return t * t * t * (t * (t * 6 - 15) + 10);
+            return t * t * t * (t * (t * 6 - 15) + 10);
         }
         function lerp(t, a, b) {
-          return a + t * (b - a);
+            return a + t * (b - a);
         }
         function grad(hash, x, y, z) {
-          var h = hash & 15;
-          var u = h < 8 ? x : y;
-          var v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
-          return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+            var h = hash & 15;
+            var u = h < 8 ? x : y;
+            var v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+            return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
         }
         return {
-          noise: function (x, y, z) {
-            var floorX = Math.floor(x),
-              floorY = Math.floor(y),
-              floorZ = Math.floor(z);
-            var X = floorX & 255,
-              Y = floorY & 255,
-              Z = floorZ & 255;
-            x -= floorX;
-            y -= floorY;
-            z -= floorZ;
-            var u = fade(x),
-              v = fade(y),
-              w = fade(z);
-            var A = permutation[X] + Y,
-              AA = permutation[A] + Z,
-              AB = permutation[A + 1] + Z;
-            var B = permutation[X + 1] + Y,
-              BA = permutation[B] + Z,
-              BB = permutation[B + 1] + Z;
-            return lerp(
-              w,
-              lerp(
-                v,
-                lerp(u, grad(permutation[AA], x, y, z), grad(permutation[BA], x - 1, y, z)),
-                lerp(u, grad(permutation[AB], x, y - 1, z), grad(permutation[BB], x - 1, y - 1, z))
-              ),
-              lerp(
-                v,
-                lerp(u, grad(permutation[AA + 1], x, y, z - 1), grad(permutation[BA + 1], x - 1, y, z - 1)),
-                lerp(u, grad(permutation[AB + 1], x, y - 1, z - 1), grad(permutation[BB + 1], x - 1, y - 1, z - 1))
-              )
-            );
-          }
+            noise: function (x, y, z) {
+                var floorX = Math.floor(x),
+                    floorY = Math.floor(y),
+                    floorZ = Math.floor(z);
+                var X = floorX & 255,
+                    Y = floorY & 255,
+                    Z = floorZ & 255;
+                x -= floorX;
+                y -= floorY;
+                z -= floorZ;
+                var u = fade(x),
+                    v = fade(y),
+                    w = fade(z);
+                var A = permutation[X] + Y,
+                    AA = permutation[A] + Z,
+                    AB = permutation[A + 1] + Z;
+                var B = permutation[X + 1] + Y,
+                    BA = permutation[B] + Z,
+                    BB = permutation[B + 1] + Z;
+                return lerp(
+                    w,
+                    lerp(
+                        v,
+                        lerp(u, grad(permutation[AA], x, y, z), grad(permutation[BA], x - 1, y, z)),
+                        lerp(u, grad(permutation[AB], x, y - 1, z), grad(permutation[BB], x - 1, y - 1, z))
+                    ),
+                    lerp(
+                        v,
+                        lerp(u, grad(permutation[AA + 1], x, y, z - 1), grad(permutation[BA + 1], x - 1, y, z - 1)),
+                        lerp(u, grad(permutation[AB + 1], x, y - 1, z - 1), grad(permutation[BB + 1], x - 1, y - 1, z - 1))
+                    )
+                );
+            }
         };
-      };
+    };
     </script>
 
     <!-- Main Game Script -->
     <script>
-      /********************************************
-       * Global Constants & Variables
-       ********************************************/
-      const CHUNK_SIZE = 16;         // Blocks per side of a chunk
-      const WORLD_HEIGHT = 32;         // Vertical blocks per chunk
-      const WORLD_CHUNK_COUNT = 50;    // World grid: 50 x 50 chunks
-      const VISIBLE_RADIUS = 5;        // Load chunks within 5 chunks of the player
+    /* Simplified build: no biome/config systems */
+    // Core constants and globals
+    const CHUNK_SIZE = 16;
+    const WORLD_HEIGHT = 400;
+    const WORLD_CHUNK_COUNT = 256; // logical world bound for clamping (large but finite)
+    const VISIBLE_RADIUS = 12;      // how many chunks around player to keep loaded
+    const MAX_CHUNKS_PER_FRAME = 8; // throttle worker requests per frame (increased for faster loading)
+    const NUM_WORKERS = 12;          // Use multiple workers for parallel chunk generation
 
-      // Block types:
-      // 0 = Air
-      // 1 = Stone
-      // 2 = Dirt (surface)
-      // 3 = Wood (trunk)
-      // 4 = Leaves
-      // Colors will be assigned per type.
-      const blockColors = {
-        1: new THREE.Color(0x888888),  // Stone: gray
-        2: new THREE.Color(0x664422),  // Dirt: brownish
-        3: new THREE.Color(0x885522),  // Wood: dark brown
-        4: new THREE.Color(0x88cc88),  // Leaves: light green
-      };
+    // Loading screen elements and state
+    const loadingScreenEl = document.getElementById('loading-screen');
+    const loadingBarEl = document.getElementById('loading-progress-bar');
+    const loadingTextEl = document.getElementById('loading-text');
+    const minLoadingTime = 1200; // ms
+    const loadingStartTime = Date.now();
+    let loadedInitialChunksCount = 0;
+    const INITIAL_LOAD_RADIUS = 2; // matches the 5x5 grid in updateChunks during loading
+    const totalInitialChunksToLoad = (INITIAL_LOAD_RADIUS * 2 + 1) ** 2; // 25
+    let hasStartedChunkLoading = false;
+    let isLoading = true;
+    let forcePlay = false; // set true to skip waiting for all initial chunks
 
-      // Player collision and movement parameters.
-      const playerHeight = 1.8;        // Cylinder height
-      const playerRadius = 0.3;        // Cylinder radius
-      const jumpImpulse = 13;          // Jump impulse
+    // Input state map
+    const KEY = {};
 
-      let scene, renderer;
-      let camera, yawObject, pitchObject;
-      let controlsEnabled = false;
+    // Chunk tracking / worker pool
+    const pendingChunks = new Map();
+    const chunkWorkers = [];
+    
+    // Create worker pool for parallel chunk generation
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        const worker = new Worker('./lib/js/workers/chunkWorker.js');
+        chunkWorkers.push(worker);
+    }
+    
+    // Dedicated worker for applying player edits (place/break) to avoid conflicts
+    const updateWorker = new Worker('./lib/js/workers/chunkUpdateWorker.js');
+    // Attach same message handler so update results are processed uniformly
+    updateWorker.onmessage = function(e) { handleWorkerMessage(e); };
+    
+    // Helper to get consistent worker for a specific chunk (prevents conflicts)
+    // Each chunk always goes to the same worker based on its coordinates
+    function getWorkerForChunk(cx, cz) {
+        // Use a hash function to deterministically assign chunks to workers
+        // This ensures the same chunk always uses the same worker
+        const hash = ((cx & 0xFFFF) << 16) | (cz & 0xFFFF);
+        const workerIndex = Math.abs(hash) % NUM_WORKERS;
+        return chunkWorkers[workerIndex];
+    }
+    
+    // Legacy compatibility - point to first worker
+    var chunkWorker = chunkWorkers[0];
 
-      // Movement state.
-      let velocity = new THREE.Vector3();
-      let prevTime = performance.now();
-      let moveForward = false,
-          moveBackward = false,
-          moveLeft = false,
-          moveRight = false;
-      let canJump = false;
+    // Caches and helpers
+    const groundHeightCache = new Map();
+    // If there is no saved world system, resolve immediately
+    const loadSavedWorldPromise = Promise.resolve();
+    function showRandomLoadingText() {
+        const idx = Math.floor(Math.random() * loadingText.length);
+        loadingTextEl.innerHTML = loadingText[idx];
+    }
+    function updateLoadingBar() {
+        const timePassed = Date.now() - loadingStartTime;
+        const timeProgress = Math.min(timePassed / minLoadingTime, 1);
+        const chunkProgress = Math.min(loadedInitialChunksCount / totalInitialChunksToLoad, 1);
+        
+        // Use the maximum of time-based and chunk-based progress
+        const pct = Math.max(timeProgress, chunkProgress) * 100;
+        loadingBarEl.style.width = pct + '%';
+        
+        // Complete loading when either:
+        // - We've fully loaded the planned initial chunks, OR
+        // - Force play is enabled
+        if (chunkProgress >= 1 || forcePlay) {
+            loadingTextEl.innerHTML = "Loading complete!";
+            clearInterval(loadingInterval);
+            setTimeout(completeLoading, 500);
+        }
+    }
+    // Called when each initial chunk finishes loading
+    function chunkLoaded() {
+        loadedInitialChunksCount++;
+        updateLoadingBar();
+    }
+    function completeLoading() {
+        loadingScreenEl.style.display = 'none';
+        isLoading = false;
+        // Prompt for pointer lock after user click
+        document.addEventListener('click', function unlockPointer() {
+          renderer.domElement.requestPointerLock();
+          document.removeEventListener('click', unlockPointer);
+        });
+    }
+    // Show loading screen and start text updates
+    loadingScreenEl.style.display = 'flex';
+    showRandomLoadingText();
+    let loadingInterval = setInterval(showRandomLoadingText, 10000);
+    updateLoadingBar();
+    // END: Loading Screen Logic
 
-      // Dictionaries for chunk meshes and block data.
-      let loadedChunks = {};    // keys: "cx,cz" -> mesh
-      let chunkDataStore = {};  // keys: "cx,cz" -> 3D block array
+    // Biome Data  
+    /********************************************
+     * Important Biome Data Notes:
+     * 
+     *   **TRANSITION** The transition value can be set to "None", "Mostly", or "Full"
+     *   "None" means no transition between biomes. It may look a bit choppy for some biomes.
+     *   "Mostly" means that the transition between biomes is mostly smooth. Some sections may look choppy while others are smooth.
+     *   "Full" means that the transition between biomes is very smooth. Great for mountains and such.
+     * 
+     *   **LAYERS** The layers value is an array of objects. Each object has a type and number value.
+     *   The layers are rendered from top to bottom till either the layer placing is complete, or reaches the very bottom of the chunk.
+     *   If the layers are completed, the defaultLayer is used for the remaining blocks.
+     * 
+     *   The type is the block type. The number is the number of blocks of the type.
+     *   The number can be a solid number made using an integer, or a string.
+     *   There are three types of strings:
+     *   Range "[min]-[max]": The number of blocks will be a random number between min and max.
+     *   Single Number "[number]": The number of blocks will be number.
+     *   Coordinates "$[yMin]-[yMax]": The number of blocks will be a random number between min and max.
+     *********************************************/
+    // BIOMES - Will be populated from GamePack data
+    // Remove advanced terrain generation systems and seed usage
 
-      // Noise generator.
-      const noiseGenerator = new ImprovedNoise();
+    // Add a mapping for block type strings
+    // BLOCK_TYPES will be populated by GamePack data
+    const BLOCK_TYPES = {};
+    const BLOCK_NAMES = {}; // Reverse mapping from ID to name
 
-      // For raycasting block interactions.
-      const raycaster = new THREE.Raycaster();
-      const pointer = new THREE.Vector2();
+    // Helper function to get block name from ID
+    function getBlockName(blockId) {
+        if (blockId === 0 || blockId === null || blockId === undefined) {
+            return 'Air';
+        }
+        const name = BLOCK_NAMES[blockId];
+        if (name) {
+            // Format name: capitalize first letter and replace underscores with spaces
+            return name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' ');
+        }
+        return `Unknown (${blockId})`;
+    }
 
-      /********************************************
-       * Cylinder-Based Collision Helpers
-       ********************************************/
-      function collidesCylinder(posY, posX, posZ) {
+    // Remove structure generators in simplified build
+
+    // blockColors will be populated by GamePack data
+    const blockColors = {};
+
+    // Remove default biome usage
+
+    // Texture support: preload textures for blocks that specify an image path in blockColors
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.crossOrigin = "anonymous";
+    
+    // Function to handle texture loading errors
+    function onTextureLoadError(blockName, texturePath) {
+        console.error(`Failed to load texture for ${blockName}: ${texturePath}`);
+    }
+
+    // Helper function to create worker constants
+    function getWorkerConstants() {
+        return {
+            CHUNK_SIZE,
+            WORLD_HEIGHT,
+            BLOCK_TYPES,
+            blockColors: getSerializableBlockProperties(blockColors)
+        };
+    }
+
+    // Function to load textures for all blocks
+    function loadBlockTextures() {
+        console.log("Loading block textures...");
+        
+        // Load textures for each block type
+        Object.entries(blockColors).forEach(([name, props]) => {
+            console.log(`Processing textures for block ${name}:`, props);
+            // Handle base texture
+            if (typeof props.color === 'string') {
+                // Check if it's a hex color (starts with #) or a texture path
+                if (props.color.startsWith('#')) {
+                    // It's a hex color - convert to THREE.Color
+                    props.color = new THREE.Color(props.color);
+                    console.log(`Applied hex color for ${name}:`, props.color);
+                } else {
+                    // It's a texture path - load the texture
+                    try {
+                    props.texture = textureLoader.load(
+                        props.color,
+                        (texture) => {
+                            // Enable transparency for the texture
+                            texture.premultiplyAlpha = true;
+                            texture.format = THREE.RGBAFormat;
+                            // Store the block name in the texture's userData for later reference
+                            texture.userData = { blockName: name };
+                        },
+                        undefined,
+                        () => onTextureLoadError(name, props.color)
+                    );
+                    props.texture.wrapS = THREE.RepeatWrapping;
+                    props.texture.wrapT = THREE.RepeatWrapping;
+                    props.color = new THREE.Color(0xffffff);
+                } catch (e) {
+                    console.error(`Error loading texture for ${name}:`, e);
+                    props.color = new THREE.Color(0xff00ff); // Fallback color
+                }
+            }
+        }
+        
+        // Handle per-face textures
+        if (props.faces) {
+            Object.entries(props.faces).forEach(([face, val]) => {
+                if (typeof val === 'string') {
+                    // Check if it's a hex color or texture path
+                    if (val.startsWith('#')) {
+                        // It's a hex color
+                        props.faces[face] = {
+                            color: new THREE.Color(val)
+                        };
+                        console.log(`Applied hex color for ${name} ${face}:`, val);
+                    } else {
+                        // It's a texture path
+                        try {
+                        const texture = textureLoader.load(
+                            val,
+                            (texture) => {
+                                // Enable transparency for the texture
+                                texture.premultiplyAlpha = true;
+                                texture.format = THREE.RGBAFormat;
+                                texture.userData = { blockName: name };
+                            },
+                            undefined,
+                            () => onTextureLoadError(name, val)
+                        );
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.RepeatWrapping;
+                        props.faces[face] = {
+                            texture: texture,
+                            color: props.color || new THREE.Color(0xffffff)
+                        };
+                    } catch (e) {
+                        console.error(`Error loading face texture for ${name}:`, e);
+                        props.faces[face] = {
+                            color: new THREE.Color(0xff00ff) // Fallback color
+                        };
+                    }
+                }
+                }
+            });
+        }
+    });
+    
+    console.log("Block textures loaded successfully");
+    }
+
+    // Removed unused getBlockName helper
+
+    // Player collision and movement parameters.
+    const playerHeight = 1.8;       
+    const playerRadius = 0.3;       
+    const jumpImpulse = 13; 
+    const stepHeight = 1; // how high the player can step up (one slab-ish)
+    const skin = 0.001;     // small inset to avoid floating-point sticking (keep me)
+    // Remove world seed (no longer used)
+
+    // Global variables for rendering, scene, and input.
+    let scene, renderer;
+    let camera, yawObject;
+    // Global lighting refs
+    let sunLight, hemiLight;
+    // Camera effect holder for underwater wobble
+    let cameraEffect;
+    // Smooth step-up camera easing
+    let cameraStepLag = 0; // temporary downward offset after a step-up
+    const stepSmoothSpeed = 6.0; // units per second to remove lag (~0.1s for 0.6 step)
+    let pitch = 0;
+    let controlsEnabled = false;
+    let velocity = new THREE.Vector3();
+    let prevTime = performance.now();
+    let moveForward = false,
+        moveBackward = false,
+        moveLeft = false,
+        moveRight = false;
+    let canJump = false;
+    let onGround = false;
+    let lastPlayerChunkX = null, lastPlayerChunkZ = null;
+    let loadedChunks = {};    // keys: "cx,cz" -> mesh
+    let chunkDataStore = {};  // keys: "cx,cz" -> 3D block array
+    let transientChunkOverlays = {}; // transient meshes for immediate feedback on edits
+    
+    // Track camera rotation to detect when player looks around
+    let lastCameraYaw = 0;
+    let lastCameraPitch = 0;
+    let cameraRotationChanged = false;
+    
+    // Add frustum for visibility checking
+    const cameraFrustum = new THREE.Frustum();
+    const cameraViewMatrix = new THREE.Matrix4();
+    
+    // CHUNK LOADING SYSTEM:
+    // Uses a simple array instead of a queue for better performance
+    // Behavior:
+    // - Already LOADED chunks stay loaded (even when you look away)
+    // - NEW unloaded chunks only generate if:
+    //   1. Within VISIBLE_RADIUS distance
+    //   2. Inside the camera frustum (visible on screen)
+    //   3. Sorted by distance (closest chunks load first)
+    // - Chunks generate immediately when you turn your head (not just when moving)
+    // - Chunks only unload when you move too far away (distance-based only)
+    const chunksToLoad = [];
+    
+    // PRIORITY CHUNK SYSTEM:
+    // Modified chunks get highest priority and update immediately
+    const priorityChunks = new Set(); // Chunks that have been modified by player
+    const chunkUpdateThrottle = new Map(); // Track last update time per chunk
+    const MIN_UPDATE_INTERVAL = 100; // Minimum ms between chunk updates (except priority)
+    let needsQueueSort = false; // Flag to optimize sorting
+    
+    // Helper to check if a chunk is in the camera frustum
+    function isChunkInView(cx, cz) {
+        // Create a bounding box for the chunk
+        const chunkWorldX = cx * CHUNK_SIZE;
+        const chunkWorldZ = cz * CHUNK_SIZE;
+        const chunkBox = new THREE.Box3(
+            new THREE.Vector3(chunkWorldX, 0, chunkWorldZ),
+            new THREE.Vector3(chunkWorldX + CHUNK_SIZE, WORLD_HEIGHT, chunkWorldZ + CHUNK_SIZE)
+        );
+        return cameraFrustum.intersectsBox(chunkBox);
+    }
+
+    // Noise generator and raycaster for block interactions.
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    // Block highlighting
+    let highlightMesh = null;
+    let hoveredBlock = null; // Store info about the block being looked at
+    
+    function createHighlightBox() {
+        const geometry = new THREE.BoxGeometry(1.01, 1.01, 1.01);
+        const edges = new THREE.EdgesGeometry(geometry);
+        const material = new THREE.LineBasicMaterial({ 
+            color: 0xffffff, 
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.8
+        });
+        const mesh = new THREE.LineSegments(edges, material);
+        mesh.visible = false;
+        return mesh;
+    }
+
+    // Global running detection.
+    let lastWPressTime = 0;
+    let isRunning = false;
+
+    // Add global flying variables:
+    let isFlying = false;
+    let lastJumpTapTime = 0;
+    let flyUp = false;
+    let flyDown = false;
+
+    // Add global game mode variable (default "normal")
+    let gameMode = "normal"; // "normal" or "spectator"
+
+    // FPS and game info tracking
+    let fpsCounter = 0;
+    let fpsLastTime = performance.now();
+    let currentFPS = 0;
+    let chunkUpdatesThisSecond = 0;
+    let chunkUpdatesLastTime = performance.now();
+    let showDebugInfo = true; // Toggle for debug info display
+
+    // Remove biome distribution system and related helpers
+
+    // Function to update game info display
+    function updateGameInfo() {
+        const playerPos = yawObject.position;
+        const chunksInMemory = Object.keys(chunkDataStore).length;
+        const chunksLoaded = Object.keys(loadedChunks).length;
+        const chunksInQueue = chunksToLoad.length;
+        const entities = 0; // Not implemented yet
+        const chunksBeingProcessed = pendingChunks.size;
+        
+        // Format position to 2 decimal places
+        const posX = playerPos.x.toFixed(2);
+        const posY = playerPos.y.toFixed(2);
+        const posZ = playerPos.z.toFixed(2);
+        
+        // Calculate chunk coordinates
+        const chunkX = Math.floor(playerPos.x / CHUNK_SIZE);
+        const chunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
+        
+    // Simplified build: no biome info
+    const biomeDisplayName = 'N/A';
+        
+        // Create status indicators
+        const statusIndicators = [];
+        if (isFlying) statusIndicators.push('<span style="color: #ffff00;">Flying</span>');
+        if (isInWater()) statusIndicators.push('<span style="color: #00ffff;">In Water</span>');
+        if (isRunning) statusIndicators.push('<span style="color: #00ff00;">Running</span>');
+        
+        // Update info display
+        const infoElement = document.getElementById('info');
+        infoElement.innerHTML = `
+            <div style="background: rgba(0,0,0,0.7); padding: 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; font-family: 'Courier New', monospace; max-width: 280px;">
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.10</div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #88ff88;">Performance:</div>
+                    <div style="margin-left: 10px;">FPS: <span style="color: ${currentFPS >= 60 ? '#00ff00' : currentFPS >= 30 ? '#ffff00' : '#ff0000'}">${currentFPS}</span></div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #88ccff;">Chunks:</div>
+                    <div style="margin-left: 10px;">
+                        Memory: ${chunksInMemory}<br>
+                        Loaded: ${chunksLoaded}<br>
+                        Queue: ${chunksInQueue}<br>
+                        Processing: ${chunksBeingProcessed}<br>
+                        Updates/sec: ${chunkUpdatesThisSecond}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #ffcc88;">Position:</div>
+                    <div style="margin-left: 10px;">
+                        World: ${posX}, ${posY}, ${posZ}<br>
+                        Chunk: ${chunkX}, ${chunkZ}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #ffa07a;">Looking At:</div>
+                    <div style="margin-left: 10px;">
+                        ${hoveredBlock ? `<span style="color: #ffb347;">${getBlockName(hoveredBlock.type)}</span><br>${hoveredBlock.x}, ${hoveredBlock.y}, ${hoveredBlock.z}` : '<span style="color: #888888;">None</span>'}
+                    </div>
+                </div>
+                
+                
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #ff88ff;">Game:</div>
+                    <div style="margin-left: 10px;">
+                        Mode: ${gameMode}<br>
+                        Weather: <span style="color: #add8e6;">clear</span><br>
+                        Entities: ${entities}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 6px;">
+                    <div style="color: #FFB6C1;">Game Packs:</div>
+                    <div style="margin-left: 10px;">
+                        Active: ${WATCHER.gamePacks.length}<br>
+                        Loaded: ${GamePackLoader ? GamePackLoader.getPackNames().length : 0}<br>
+                        ${WATCHER.gamePacks.slice(0, 3).map(pack => 
+                            pack === '**:Default:**' ? '<span style="color: #90EE90;">Default</span>' : 
+                            `<span style="color: #87CEEB;">${pack}</span>`
+                        ).join(', ')}${WATCHER.gamePacks.length > 3 ? '...' : ''}
+                    </div>
+                </div>
+                
+                ${statusIndicators.length > 0 ? `<div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.3);">${statusIndicators.join(' • ')}</div>` : ''}
+            </div>
+        `;
+    }
+
+    /* Sky color is static in simplified build */
+    // Particle-based splash effect (kept local for future use, but not used now)
+    const splashParticles = []; // active particle objects
+    const splashLifetime = 0.6; // seconds (total life for each particle)
+    const particlesPerSplash = 2;
+    // Shared small geometry for particles to reduce allocations
+    const splashParticleGeometry = new THREE.SphereGeometry(0.06, 6, 4);
+
+    function easeInOutQuad(t) {
+        // t in [0,1]
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    function makeSplash(x, y, z, color) {
+        // Move splash up until there is no block (find surface)
+        const fx = Math.floor(x);
+        const fz = Math.floor(z);
+        let iy = Math.max(0, Math.min(WORLD_HEIGHT - 2, Math.floor(y)));
+        const MAX_STEPS = 16; // small cap for performance
+        for (let s = 0; s < MAX_STEPS; s++) {
+            const b = getBlockAt(fx, iy, fz);
+            if (b !== 0) {
+                iy++;
+                if (iy >= WORLD_HEIGHT - 1) break;
+            } else {
+                break;
+            }
+        }
+        y = iy + 0.02;
+
+        // spawn a few small particles that pop up
+        for (let i = 0; i < particlesPerSplash; i++) {
+            const mat = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 1,
+                depthWrite: false
+            });
+            const mesh = new THREE.Mesh(splashParticleGeometry, mat);
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
+            mesh.position.set(x, y + 0.02, z);
+            // random initial horizontal velocity and an upward impulse
+            const vel = new THREE.Vector3(
+                (Math.random() - 0.5) * (0.6 + Math.random() * 0.8),
+                1.2 + Math.random() * 1.0,
+                (Math.random() - 0.5) * (0.6 + Math.random() * 0.8)
+            );
+            // small random rotation/scale baseline
+            const baseScale = 0.2 + Math.random() * 0.25;
+            mesh.scale.setScalar(baseScale * 0.01); // start extremely small; will grow
+            scene.add(mesh);
+            splashParticles.push({
+                mesh,
+                vel,
+                time: 0,
+                lifetime: splashLifetime,
+                baseScale,
+                material: mat
+            });
+        }
+    }
+
+    function updateSplashes(delta) {
+        // update rain-created particles
+        for (let i = splashParticles.length - 1; i >= 0; i--) {
+            const p = splashParticles[i];
+            p.time += delta;
+            const tnorm = Math.min(1, p.time / p.lifetime);
+
+            // physics: apply gravity and air drag
+            // slight gravity so particles arc and fall back a bit
+            p.vel.y -= 9.8 * 0.8 * delta; // weaker gravity for splash droplets
+            p.vel.x *= 1 - 2.5 * delta; // mild drag
+            p.vel.z *= 1 - 2.5 * delta;
+            p.mesh.position.x += p.vel.x * delta;
+            p.mesh.position.y += p.vel.y * delta;
+            p.mesh.position.z += p.vel.z * delta;
+
+            // visual: grow during first half (ease-in-out), then shrink & fade after halfway
+            let scaleFactor;
+            if (tnorm <= 0.5) {
+                // growth phase: map 0..0.5 => 0..1 for easing
+                const t = tnorm / 0.5;
+                const eased = easeInOutQuad(t);
+                scaleFactor = eased; // 0 -> 1
+                p.material.opacity = 1;
+            } else {
+                // shrink & fade phase: map 0.5..1 => 0..1 for easing
+                const t = (tnorm - 0.5) / 0.5;
+                const eased = easeInOutQuad(t);
+                scaleFactor = 1 - eased; // 1 -> 0
+                p.material.opacity = Math.max(1 - eased, 0);
+            }
+
+            // apply scale (use baseScale as maximum)
+            const currentScale = Math.max(0.0001, p.baseScale * (0.15 + 0.85 * scaleFactor));
+            p.mesh.scale.setScalar(currentScale);
+
+            // remove when lifetime exceeded or fully invisible/too small
+            if (p.time >= p.lifetime || p.material.opacity <= 0.01 || currentScale <= 0.0002) {
+                scene.remove(p.mesh);
+                if (p.mesh.geometry) p.mesh.geometry.dispose();
+                if (p.material) p.material.dispose();
+                splashParticles.splice(i, 1);
+            }
+        }
+
+        // Fallback: keep the old "circle" splashes array compatibility removed.
+    }
+    // Remove pointer lock if any touch event occurs:
+    document.addEventListener("touchstart", function(e) {
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+    }, { passive: true });
+
+    /********************************************
+     * Methods
+     ********************************************/
+    // Cylinder-Based Collision Helpers
+    function collidesCylinder(posY, posX, posZ) {
         const baseY = posY;
         const topY = posY + playerHeight;
         for (let bx = Math.floor(posX - playerRadius); bx <= Math.floor(posX + playerRadius); bx++) {
-          for (let bz = Math.floor(posZ - playerRadius); bz <= Math.floor(posZ + playerRadius); bz++) {
-            for (let by = Math.floor(baseY); by < Math.floor(topY) + 1; by++) {
-              if (getBlockAt(bx, by, bz)) {
-                if ((by < topY) && (by + 1 > baseY)) {
-                  const nearestX = Math.max(bx, Math.min(posX, bx + 1));
-                  const nearestZ = Math.max(bz, Math.min(posZ, bz + 1));
-                  const dx = posX - nearestX;
-                  const dz = posZ - nearestZ;
-                  if (Math.sqrt(dx * dx + dz * dz) < playerRadius) return true;
+            for (let bz = Math.floor(posZ - playerRadius); bz <= Math.floor(posZ + playerRadius); bz++) {
+                for (let by = Math.floor(baseY); by < Math.floor(topY) + 1; by++) {
+                    // changed code: ignore water blocks
+                    const block = getBlockAt(bx, by, bz);
+                    if (block && block !== BLOCK_TYPES.water) {
+                        if ((by < topY) && (by + 1 > baseY)) {
+                            const nearestX = Math.max(bx, Math.min(posX, bx + 1));
+                            const nearestZ = Math.max(bz, Math.min(posZ, bz + 1));
+                            const dx = posX - nearestX;
+                            const dz = posZ - nearestZ;
+                            if (Math.sqrt(dx * dx + dz * dz) < playerRadius) return true;
+                        }
+                    }
                 }
-              }
             }
-          }
         }
         return false;
-      }
+    }
 
-      function resolveHorizontalCollisions() {
-        let iterations = 0;
-        while (iterations < 5) {
-          let posX = yawObject.position.x;
-          let posZ = yawObject.position.z;
-          let correction = new THREE.Vector2(0, 0);
-          let collided = false;
-          const baseY = yawObject.position.y;
-          const topY = baseY + playerHeight;
-          for (let bx = Math.floor(posX - playerRadius); bx <= Math.floor(posX + playerRadius); bx++) {
-            for (let bz = Math.floor(posZ - playerRadius); bz <= Math.floor(posZ + playerRadius); bz++) {
-              for (let by = Math.floor(baseY); by < Math.floor(topY) + 1; by++) {
-                if (getBlockAt(bx, by, bz)) {
-                  if ((by < topY) && (by + 1 > baseY)) {
-                    const nearestX = Math.max(bx, Math.min(posX, bx + 1));
-                    const nearestZ = Math.max(bz, Math.min(posZ, bz + 1));
-                    let dx = posX - nearestX;
-                    let dz = posZ - nearestZ;
-                    let dist = Math.sqrt(dx * dx + dz * dz);
-                    if (dist < playerRadius) {
-                      let overlap = playerRadius - dist;
-                      if (dist === 0) {
-                        dx = 0.01;
-                        dz = 0.01;
-                        dist = Math.sqrt(dx * dx + dz * dz);
-                      }
-                      const nx = dx / dist;
-                      const nz = dz / dist;
-                      correction.x += nx * overlap;
-                      correction.y += nz * overlap;
-                      collided = true;
+    // Axis-aligned sweep with step-up handling
+    function collideAndSlide(desired, dt) {
+        // desired: THREE.Vector3 delta movement
+        const pos = yawObject.position.clone();
+
+    // Vertical first: apply gravity part of desired.y and resolve
+    pos.y += desired.y;
+    const vres = resolveVertical(pos, desired.y);
+    if (!vres.hit) onGround = false;
+
+        // Try XZ move with step support
+        const movedXZ = stepOrSlideXZ(pos, desired.x, desired.z);
+        pos.copy(movedXZ);
+
+        yawObject.position.copy(pos);
+    }
+
+    function aabbVsBlock(px, py, pz, bx, by, bz) {
+        // Player AABB (cylinder approximated by AABB)
+        const minX = px - playerRadius + skin;
+        const maxX = px + playerRadius - skin;
+        const minY = py + skin;
+        const maxY = py + playerHeight - skin;
+        const minZ = pz - playerRadius + skin;
+        const maxZ = pz + playerRadius - skin;
+        // Block AABB
+        const bMinX = bx, bMaxX = bx + 1;
+        const bMinY = by, bMaxY = by + 1;
+        const bMinZ = bz, bMaxZ = bz + 1;
+
+        return (
+            maxX > bMinX && minX < bMaxX &&
+            maxY > bMinY && minY < bMaxY &&
+            maxZ > bMinZ && minZ < bMaxZ
+        );
+    }
+
+    function isSolid(b) {
+        return b && b !== BLOCK_TYPES.water; // ignore water
+    }
+
+    function resolveVertical(pos, dy) {
+        // If we don't overlap any solid, nothing to do
+        if (!hitsSolid(pos)) return { hit: false };
+        const minBX = Math.floor(pos.x - playerRadius);
+        const maxBX = Math.floor(pos.x + playerRadius);
+        const minBZ = Math.floor(pos.z - playerRadius);
+        const maxBZ = Math.floor(pos.z + playerRadius);
+        const baseY = Math.floor(pos.y);
+        const topY = Math.floor(pos.y + playerHeight);
+
+        if (dy < 0) {
+            // Moving down: find the highest block we overlap and place feet on its top
+            let highest = -Infinity;
+            for (let bx = minBX; bx <= maxBX; bx++) {
+                for (let bz = minBZ; bz <= maxBZ; bz++) {
+                    for (let by = baseY - 1; by <= topY; by++) {
+                        const b = getBlockAt(bx, by, bz);
+                        if (isSolid(b) && aabbVsBlock(pos.x, pos.y, pos.z, bx, by, bz)) {
+                            highest = Math.max(highest, by + 1);
+                        }
                     }
-                  }
                 }
-              }
             }
-          }
-          if (collided) {
-            yawObject.position.x += correction.x;
-            yawObject.position.z += correction.y;
-          } else {
-            break;
-          }
-          iterations++;
+            if (highest !== -Infinity) {
+                pos.y = highest;
+                onGround = true;
+                canJump = true;
+                velocity.y = 0;
+                return { hit: true };
+            }
+        } else if (dy > 0) {
+            // Moving up: find the lowest block we overlap above and place head just below it
+            let lowest = Infinity;
+            for (let bx = minBX; bx <= maxBX; bx++) {
+                for (let bz = minBZ; bz <= maxBZ; bz++) {
+                    for (let by = baseY; by <= topY + 1; by++) {
+                        const b = getBlockAt(bx, by, bz);
+                        if (isSolid(b) && aabbVsBlock(pos.x, pos.y, pos.z, bx, by, bz)) {
+                            lowest = Math.min(lowest, by);
+                        }
+                    }
+                }
+            }
+            if (lowest !== Infinity) {
+                pos.y = lowest - playerHeight;
+                velocity.y = 0;
+                return { hit: true };
+            }
         }
-      }
+        return { hit: false };
+    }
 
-      /********************************************
-       * Block & Chunk Helpers
-       ********************************************/
-      // Returns the block value at global coordinate (1 = solid, 0 = air, or a type > 1)
-      function getBlockAt(globalX, globalY, globalZ) {
+    function stepOrSlideXZ(pos, dx, dz) {
+        // First try horizontal move without stepping
+        let tryPos = pos.clone();
+        tryPos.x += dx; tryPos.z += dz;
+        if (!hitsSolid(tryPos)) return tryPos;
+
+        // If blocked and we are grounded, attempt a small step up and retry
+        if (onGround && stepHeight > 0) {
+            tryPos = pos.clone();
+            tryPos.y += stepHeight;
+            if (!hitsSolid(tryPos)) {
+                let stepped = tryPos.clone();
+                stepped.x += dx; stepped.z += dz;
+                if (!hitsSolid(stepped)) {
+                    // Step succeeded; now drop down to ground
+                    const beforeDropY = pos.y;
+                    const down = dropToGround(stepped);
+                    // If we effectively moved up, set a small camera lag to ease the pop
+                    const deltaY = down.y - beforeDropY;
+                    if (deltaY > 0.01) {
+                        cameraStepLag = Math.min(cameraStepLag + deltaY, stepHeight);
+                    }
+                    return down;
+                }
+            }
+        }
+
+        // Slide along axes separately
+        tryPos = pos.clone();
+        tryPos.x += dx;
+        if (!hitsSolid(tryPos)) return tryPos;
+        tryPos = pos.clone();
+        tryPos.z += dz;
+        if (!hitsSolid(tryPos)) return tryPos;
+        return pos; // stuck
+    }
+
+    function dropToGround(pos) {
+        // Sweep down by up to stepHeight to rest on ground
+        const base = pos.y;
+        const maxDrop = Math.max(0.05, stepHeight);
+        const step = 0.05;
+        let test = pos.clone();
+        for (let d = step; d <= maxDrop + step; d += step) {
+            test.y = base - d;
+            if (hitsSolid(test)) {
+                // Place just above ground using resolveVertical
+                const before = test.clone();
+                const res = resolveVertical(test, -d);
+                if (res.hit) return test;
+                return before;
+            }
+        }
+        return pos;
+    }
+
+    function hitsSolid(pos) {
+        const minBX = Math.floor(pos.x - playerRadius);
+        const maxBX = Math.floor(pos.x + playerRadius);
+        const minBZ = Math.floor(pos.z - playerRadius);
+        const maxBZ = Math.floor(pos.z + playerRadius);
+        const baseY = Math.floor(pos.y);
+        const topY = Math.floor(pos.y + playerHeight);
+        for (let bx = minBX; bx <= maxBX; bx++) {
+            for (let bz = minBZ; bz <= maxBZ; bz++) {
+                for (let by = baseY; by <= topY; by++) {
+                    const b = getBlockAt(bx, by, bz);
+                    if (isSolid(b) && aabbVsBlock(pos.x, pos.y, pos.z, bx, by, bz)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Block & Chunk Helpers
+    function getBlockAt(globalX, globalY, globalZ) {
         if (globalY < 0 || globalY >= WORLD_HEIGHT) return 0;
         const cx = Math.floor(globalX / CHUNK_SIZE);
         const cz = Math.floor(globalZ / CHUNK_SIZE);
         if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) return 0;
+        
+        // Get block from chunk data
         const key = `${cx},${cz}`;
         const chunkData = chunkDataStore[key];
-        if (!chunkData) return 0;
+        if (!chunkData) {
+            // For unloaded chunks, queue them for loading
+            queueChunkLoad(cx, cz);
+            return 0; // Return air for now
+        }
+        
         const localX = globalX - cx * CHUNK_SIZE;
         const localZ = globalZ - cz * CHUNK_SIZE;
-        if (localX < 0 || localX >= CHUNK_SIZE || localZ < 0 || localZ >= CHUNK_SIZE)
-          return 0;
-        return chunkData[localX][globalY][localZ];
-      }
+        if (localX < 0 || localX >= CHUNK_SIZE || localZ < 0 || localZ >= CHUNK_SIZE) return 0;
+        // Sparse-aware access
+        const col = chunkData[localX];
+        if (!col) return 0;
+        const row = col[globalY];
+        if (!row) return 0;
+        return row[localZ] || 0;
+    }
 
-      // Helper for chunk-local access
-      function getBlockInChunk(chunkData, x, y, z) {
-        if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE)
-          return 0;
-        return chunkData[x][y][z];
-      }
+    // Helper function to check if player is in water
+    function isInWater() {
+        const pos = yawObject.position;
+        const x = Math.floor(pos.x);
+        const y = Math.floor(pos.y);
+        const z = Math.floor(pos.z);
+        
+        // Check blocks at player's body (from feet to head)
+        for (let dy = 0; dy <= Math.ceil(playerHeight); dy++) {
+            if (getBlockAt(x, y + dy, z) === BLOCK_TYPES.water) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-      // Cube face definitions.
-      const faces = [
+    function getBlockInChunk(chunkData, x, y, z) {
+        if (y < 0 || y >= WORLD_HEIGHT) return 0;
+        
+        // Convert to global coordinates
+        const globalX = chunkData.chunkX * CHUNK_SIZE + x;
+        const globalZ = chunkData.chunkZ * CHUNK_SIZE + z;
+        
+        // Use getBlockAt for any coordinates - it will handle chunk boundaries
+        return getBlockAt(globalX, y, globalZ);
+    }
+
+    const faces = [
         { // Left face (-X)
-          dir: [-1, 0, 0],
-          vertices: [
+        dir: [-1, 0, 0],
+        vertices: [
             [0, 0, 1],
             [0, 1, 1],
             [0, 1, 0],
             [0, 0, 0],
-          ]
+        ]
         },
         { // Right face (+X)
-          dir: [1, 0, 0],
-          vertices: [
+        dir: [1, 0, 0],
+        vertices: [
             [1, 0, 0],
             [1, 1, 0],
             [1, 1, 1],
             [1, 0, 1],
-          ]
+        ]
         },
         { // Bottom face (-Y)
-          dir: [0, -1, 0],
-          vertices: [
+        dir: [0, -1, 0],
+        vertices: [
             [0, 0, 0],
             [1, 0, 0],
             [1, 0, 1],
             [0, 0, 1],
-          ]
+        ]
         },
         { // Top face (+Y)
-          dir: [0, 1, 0],
-          vertices: [
+        dir: [0, 1, 0],
+        vertices: [
             [0, 1, 1],
             [1, 1, 1],
             [1, 1, 0],
             [0, 1, 0],
-          ]
+        ]
         },
         { // Back face (-Z)
-          dir: [0, 0, -1],
-          vertices: [
+        dir: [0, 0, -1],
+        vertices: [
             [1, 0, 0],
             [0, 0, 0],
             [0, 1, 0],
             [1, 1, 0],
-          ]
+        ]
         },
         { // Front face (+Z)
-          dir: [0, 0, 1],
-          vertices: [
+        dir: [0, 0, 1],
+        vertices: [
             [0, 0, 1],
             [1, 0, 1],
             [1, 1, 1],
             [0, 1, 1],
-          ]
+        ]
         }
-      ];
+    ];
+    // Add mapping from face index to face name for styling
+    const faceNames = ["left", "right", "bottom", "top", "back", "front"];
 
-      // Height function using improved noise.
-      function getHeight(globalX, globalZ) {
-        const frequency = 0.05;
-        let noiseVal = noiseGenerator.noise(globalX * frequency, 0, globalZ * frequency);
-        return Math.floor(((noiseVal + 1) / 2) * (WORLD_HEIGHT - 1));
-      }
+    // Chunk geometry is now built in the worker
 
-      /********************************************
-       * Tree Generation in Chunk Data
-       ********************************************/
-      // Generates the block data for a single chunk.
-      // Generates ground and—with a small chance—a tree on some columns.
-      function generateChunkData(cx, cz) {
-        // Create a 3D array: data[x][y][z]
-        const data = [];
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-          data[x] = [];
-          for (let y = 0; y < WORLD_HEIGHT; y++) {
-            data[x][y] = [];
-            for (let z = 0; z < CHUNK_SIZE; z++) {
-              data[x][y][z] = 0;
-            }
-          }
-        }
-        // For each column (x,z) in the chunk:
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-          for (let z = 0; z < CHUNK_SIZE; z++) {
-            let globalX = cx * CHUNK_SIZE + x;
-            let globalZ = cz * CHUNK_SIZE + z;
-            let h = getHeight(globalX, globalZ);
-            if (h >= WORLD_HEIGHT) h = WORLD_HEIGHT - 1;
-            // Fill lower layers with stone.
-            for (let y = 0; y < h; y++) {
-              data[x][y][z] = 1; // Stone
-            }
-            // Set the top block as dirt.
-            data[x][h][z] = 2; // Dirt (surface)
-            
-            // Optionally, generate a tree with a small chance.
-            // Only generate if the column is not at the very edge of the chunk.
-            if (h >= 4 && x >= 2 && x < CHUNK_SIZE - 2 && z >= 2 && z < CHUNK_SIZE - 2) {
-              if (Math.random() < 0.04) {
-                // Generate trunk.
-                const trunkHeight = Math.floor(Math.random() * 3) + 4; // 4-6 blocks tall
-                for (let i = 1; i <= trunkHeight; i++) {
-                  if (h + i < WORLD_HEIGHT) {
-                    data[x][h + i][z] = 3; // Wood
-                  }
-                }
-                // Generate a simple canopy.
-                for (let dy = trunkHeight; dy <= trunkHeight + 1; dy++) {
-                  if (h + dy >= WORLD_HEIGHT) continue;
-                  for (let dx = -1; dx <= 1; dx++) {
-                    for (let dz = -1; dz <= 1; dz++) {
-                      const tx = x + dx;
-                      const tz = z + dz;
-                      if (tx >= 0 && tx < CHUNK_SIZE && tz >= 0 && tz < CHUNK_SIZE) {
-                        data[tx][h + dy][tz] = 4; // Leaves
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-        return data;
-      }
-
-      /********************************************
-       * Build Chunk Geometry with Vertex Colors
-       ********************************************/
-      function buildChunkGeometry(chunkData, cx, cz) {
-        const vertices = [];
-        const indices = [];
-        const uvs = [];
-        const colors = [];
-        let vertexCount = 0;
-
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-          for (let y = 0; y < WORLD_HEIGHT; y++) {
-            for (let z = 0; z < CHUNK_SIZE; z++) {
-              let blockType = chunkData[x][y][z];
-              if (blockType === 0) continue;
-
-              // For each face, check if the neighbor is air.
-              for (let f = 0; f < faces.length; f++) {
-                const face = faces[f];
-                const nx = x + face.dir[0];
-                const ny = y + face.dir[1];
-                const nz = z + face.dir[2];
-                if (getBlockInChunk(chunkData, nx, ny, nz) !== 0) continue;
-
-                // Add face vertices.
-                for (let i = 0; i < 4; i++) {
-                  const vertex = face.vertices[i];
-                  vertices.push(
-                    cx * CHUNK_SIZE + x + vertex[0],
-                    y + vertex[1],
-                    cz * CHUNK_SIZE + z + vertex[2]
-                  );
-                  // Push the color corresponding to blockType.
-                  let col = blockColors[blockType];
-                  colors.push(col.r, col.g, col.b);
-                }
-                uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
-                indices.push(
-                  vertexCount, vertexCount + 1, vertexCount + 2,
-                  vertexCount, vertexCount + 2, vertexCount + 3
-                );
-                vertexCount += 4;
-              }
-            }
-          }
-        }
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-        geometry.setIndex(indices);
-        geometry.computeVertexNormals();
-        return geometry;
-      }
-
-      /********************************************
-       * Chunk Management
-       ********************************************/
-      function loadChunk(cx, cz) {
+    // Chunk Management
+    function loadChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (loadedChunks[key]) return;
-        const chunkData = generateChunkData(cx, cz);
-        chunkDataStore[key] = chunkData;
-        const geometry = buildChunkGeometry(chunkData, cx, cz);
-        const material = new THREE.MeshLambertMaterial({
-          vertexColors: true,
-          side: THREE.FrontSide
+        
+        let chunkData = chunkDataStore[key];
+        if (!chunkData) {
+            // Queue chunk for generation by worker
+            queueChunkLoad(cx, cz);
+            
+            // Also queue neighboring chunks to ensure proper face culling
+            const neighbors = [
+                [cx - 1, cz], [cx + 1, cz],
+                [cx, cz - 1], [cx, cz + 1]
+            ];
+            
+            for (const [ncx, ncz] of neighbors) {
+                if (ncx >= 0 && ncx < WORLD_CHUNK_COUNT && 
+                    ncz >= 0 && ncz < WORLD_CHUNK_COUNT) {
+                    queueChunkLoad(ncx, ncz);
+                }
+            }
+            return;
+        }
+        
+        // Request geometry data from the worker; worker will reply via onmessage
+        pendingChunks.set(key, true);
+        const worker = getWorkerForChunk(cx, cz);
+        worker.postMessage({
+            cx, 
+            cz,
+            requestGeometry: true,
+            constants: getWorkerConstants()
         });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
-        loadedChunks[key] = mesh;
-      }
+    }
 
-      function unloadChunk(cx, cz) {
+    function unloadChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (loadedChunks[key]) {
-          scene.remove(loadedChunks[key]);
-          loadedChunks[key].geometry.dispose();
-          loadedChunks[key].material.dispose();
-          delete loadedChunks[key];
-          delete chunkDataStore[key];
+            scene.remove(loadedChunks[key]);
+            loadedChunks[key].traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+            delete loadedChunks[key];
         }
-      }
+    }
 
-      function updateChunk(cx, cz) {
+    function updateChunk(cx, cz) {
         const key = `${cx},${cz}`;
         if (!chunkDataStore[key]) return;
-        if (loadedChunks[key]) {
-          scene.remove(loadedChunks[key]);
-          loadedChunks[key].geometry.dispose();
-          loadedChunks[key].material.dispose();
+        
+        // Track chunk updates
+        chunkUpdatesThisSecond++;
+        
+        // Check if this is a priority update (modified chunk)
+        const isPriority = priorityChunks.has(key);
+        
+        // For priority chunks, bypass throttle
+        if (!isPriority && chunkUpdateThrottle.has(key)) {
+            const lastUpdate = chunkUpdateThrottle.get(key);
+            if (performance.now() - lastUpdate < MIN_UPDATE_INTERVAL) {
+                // Too soon, skip this update
+                return;
+            }
         }
-        const geometry = buildChunkGeometry(chunkDataStore[key], cx, cz);
-        const material = new THREE.MeshLambertMaterial({
-          vertexColors: true,
-          side: THREE.FrontSide
+        
+        // Update throttle timestamp
+        chunkUpdateThrottle.set(key, performance.now());
+        
+        // Don't remove the old mesh immediately - let it stay visible until new geometry is ready
+        // The worker response handler will replace it when the new geometry arrives
+        
+        // Request geometry data from the worker; worker will reply via onmessage
+        pendingChunks.set(key, true);
+        // Use dedicated updateWorker for priority (player-modified) chunks to avoid conflicts
+        const worker = isPriority ? updateWorker : getWorkerForChunk(cx, cz);
+        worker.postMessage({
+            cx, 
+            cz,
+            requestGeometry: true,
+            constants: getWorkerConstants(),
+            isPriority: isPriority  // Tell worker this is a priority update
         });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
-        loadedChunks[key] = mesh;
-      }
+        
+        // Clear priority flag after processing
+        if (isPriority) {
+            priorityChunks.delete(key);
+        }
+    }
 
-      function updateChunks() {
+    // Helper function to strip texture data from block properties
+    function getSerializableBlockProperties(blockColors) {
+        const serializableProps = {};
+        for (const [name, props] of Object.entries(blockColors)) {
+            serializableProps[name] = {
+                transparency: props.transparency || 1,
+                seeThrough: props.seeThrough || false,
+                sideRendering: props.sideRendering || "one",
+                color: props.color,
+                // Include face information for proper geometry separation
+                faces: props.faces ? Object.keys(props.faces).reduce((faceObj, faceName) => {
+                    faceObj[faceName] = {
+                        // We can't transfer textures, but we can mark that this face has a texture
+                        hasTexture: !!props.faces[faceName].texture || typeof props.faces[faceName] === 'string',
+                        color: props.faces[faceName].color
+                    };
+                    return faceObj;
+                }, {}) : null,
+                // Mark if this block has a default texture (from color property being a string)
+                hasDefaultTexture: typeof props.color === 'string' || !!props.texture
+            };
+        }
+        return serializableProps;
+    }
+
+    // Helper function to send chunk update to worker
+    function sendChunkUpdate(cx, cz, chunkData, modifiedPositions) {
+        // Use the dedicated update worker for modifications to ensure updates
+        // are serialized and won't conflict with generation workers
+        updateWorker.postMessage({
+            type: "updateChunk",
+            cx: cx,
+            cz: cz,
+            modifiedChunk: chunkData,
+            modifiedPositions: modifiedPositions || null,
+            constants: getWorkerConstants()
+        });
+    }
+
+    // Unified message handler for all workers
+    function handleWorkerMessage(e) {
+        const { cx, cz, geometryData, chunkData, type } = e.data;
+        const key = `${cx},${cz}`;
+        
+        // Track chunk updates
+        chunkUpdatesThisSecond++;
+        
+        // If we receive chunk data, store it
+        if (chunkData) {
+            chunkData.chunkX = cx;
+            chunkData.chunkZ = cz;
+            chunkDataStore[key] = chunkData;
+            // Invalidate ground height cache for this chunk's columns (to refresh heights)
+            if (typeof CHUNK_SIZE !== 'undefined') {
+                const baseX = cx * CHUNK_SIZE;
+                const baseZ = cz * CHUNK_SIZE;
+                for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+                    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+                        groundHeightCache.delete(`${baseX + lx},${baseZ + lz}`);
+                    }
+                }
+            }
+        }
+        
+        // If we receive chunk data with no geometry, request geometry
+        if (chunkData && !geometryData) {
+            // Request geometry in a separate message
+            pendingChunks.set(key, true);
+            const worker = getWorkerForChunk(cx, cz);
+            worker.postMessage({
+                cx, 
+                cz,
+                requestGeometry: true,
+                constants: getWorkerConstants()
+            });
+            
+            if (isLoading) chunkLoaded();
+            return;
+        }
+        
+        // If we don't have geometry data, nothing to render
+        if (!geometryData) {
+            if (isLoading) chunkLoaded();
+            return;
+        }
+
+        // Remove from pending queue
+        pendingChunks.delete(key);
+
+        // If this is an update for an existing chunk, remove old mesh
+        if (loadedChunks[key]) {
+            scene.remove(loadedChunks[key]);
+            loadedChunks[key].traverse(obj => { if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); });
+        }
+
+        // Remove any transient overlay for this chunk (the definitive geometry is incoming)
+        if (transientChunkOverlays && transientChunkOverlays[key]) {
+            const g = transientChunkOverlays[key];
+            scene.remove(g);
+            g.traverse(obj => { if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); });
+            delete transientChunkOverlays[key];
+        }
+
+        // Build new group from raw geometryData
+        const group = new THREE.Group();
+
+        // Opaque
+        if (geometryData.opaque && geometryData.opaque.indices.length) {
+            const buf = geometryData.opaque;
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
+            geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
+            geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
+            geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+            geom.computeVertexNormals();
+            const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.renderOrder = 0;
+            group.add(mesh);
+        }
+
+        // Textured
+        if (geometryData.textured) {
+            for (const entry of geometryData.textured) {
+                const buf = entry;
+                const geom = new THREE.BufferGeometry();
+                geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
+                geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
+                geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+                geom.computeVertexNormals();
+                
+                // Get block and face info from the entry
+                const blockName = entry.blockName || (entry.key ? entry.key.split('_')[0] : 'unknown');
+                const faceName = entry.faceName || (entry.key && entry.key.includes('_') ? entry.key.split('_')[1] : null);
+                
+                // Get the texture based on block name and face
+                let texture;
+                if (blockName && faceName && blockColors[blockName]?.faces?.[faceName]?.texture) {
+                    texture = blockColors[blockName].faces[faceName].texture;
+                } else if (blockName && blockColors[blockName]?.texture) {
+                    texture = blockColors[blockName].texture;
+                } else if (blockName) {
+                    // Debug - if we have the block name but no texture, show what's missing
+                    console.log("Missing texture for block:", blockName, faceName ? `face: ${faceName}` : '');
+                }
+                
+                const props = blockColors[blockName] || {};
+                
+                // Create material properties
+                const matProps = {
+                    transparent: props.transparency < 1,
+                    side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
+                    opacity: props.transparency || 1,
+                    alphaTest: props.alphaTest || 0.1,
+                    depthWrite: props.transparency === 1
+                };
+                
+                // Only add texture if it exists, otherwise use vertex colors
+                if (texture) {
+                    // Ensure texture is ready for rendering
+                    try { texture.needsUpdate = true; } catch (e) {}
+                    matProps.map = texture;
+                } else {
+                    // If no texture found, use a colored material based on block color
+                    // First check if the worker sent a color, otherwise fall back to blockColors
+                    const blockColor = entry.color || props.color || { r: 1, g: 1, b: 1 };
+                    matProps.color = new THREE.Color(blockColor.r, blockColor.g, blockColor.b);
+                    matProps.vertexColors = false;
+                }
+                
+                const mat = new THREE.MeshLambertMaterial(matProps);
+                const mesh = new THREE.Mesh(geom, mat);
+                const isTransparent = (props.transparency ?? 1) < 1 || props.seeThrough;
+                mesh.castShadow = !isTransparent;
+                mesh.receiveShadow = true;
+                mesh.renderOrder = props.transparency < 1 ? 2 : 0;
+                group.add(mesh);
+            }
+        }
+
+        // Transparent
+        if (geometryData.transparent && geometryData.transparent.indices.length) {
+            const buf = geometryData.transparent;
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
+            geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
+            geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
+            geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+            geom.computeVertexNormals();
+            const props = blockColors.water || { sideRendering: 'one', transparency: 0.6, alphaTest: 0.1 };
+            const mat = new THREE.MeshLambertMaterial({
+                vertexColors: true,
+                transparent: true,
+                depthWrite: false,
+                side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
+                opacity: props.transparency,
+                alphaTest: props.alphaTest || 0.1
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.castShadow = false; // water/transparent shouldn't cast
+            mesh.receiveShadow = true;
+            mesh.renderOrder = 2;
+            group.add(mesh);
+        }
+
+        // Add to scene and track
+        scene.add(group);
+        loadedChunks[key] = group;
+
+        if (isLoading) chunkLoaded();
+    }
+    
+    // Attach the unified message handler to all workers
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        chunkWorkers[i].onmessage = handleWorkerMessage;
+    }
+    
+    function queueChunkLoad(cx, cz) {
+        const key = `${cx},${cz}`;
+        // Skip if already loaded, pending, or already in list
+        if (loadedChunks[key] || pendingChunks.has(key)) return;
+        if (chunksToLoad.some(chunk => chunk.key === key)) return;
+        
+        // Calculate distance to player for sorting
+        const playerChunkX = Math.floor(yawObject.position.x / CHUNK_SIZE);
+        const playerChunkZ = Math.floor(yawObject.position.z / CHUNK_SIZE);
+        const distance = Math.sqrt(Math.pow(cx - playerChunkX, 2) + Math.pow(cz - playerChunkZ, 2));
+        
+        // Add to array with distance for sorting later
+        chunksToLoad.push({ cx, cz, key, distance, isPriority: false });
+        needsQueueSort = true; // Mark that we need to sort
+    }
+    
+    // Add a chunk to priority queue (for modified chunks)
+    function queuePriorityChunkUpdate(cx, cz) {
+        const key = `${cx},${cz}`;
+        priorityChunks.add(key);
+        
+        // If chunk is in regular queue, mark it as priority
+        const chunkInQueue = chunksToLoad.find(chunk => chunk.key === key);
+        if (chunkInQueue) {
+            chunkInQueue.isPriority = true;
+            needsQueueSort = true;
+        }
+        
+        // Process immediately if not already being processed
+        if (!pendingChunks.has(key) && chunkDataStore[key]) {
+            updateChunk(cx, cz);
+        }
+    }
+    
+    function processChunkQueue() {
+        if (chunksToLoad.length === 0) return;
+        
+        // Only sort when needed (optimization: don't sort every frame)
+        if (needsQueueSort) {
+            // Priority chunks first, then by distance (closest first)
+            chunksToLoad.sort((a, b) => {
+                if (a.isPriority !== b.isPriority) {
+                    return b.isPriority ? 1 : -1; // Priority chunks first
+                }
+                return a.distance - b.distance;
+            });
+            needsQueueSort = false;
+        }
+        
+        const startTime = performance.now();
+        const TIME_BUDGET = 16; // Try to keep chunk processing under 16ms per frame
+        
+        let processed = 0;
+        while (chunksToLoad.length > 0 && 
+               pendingChunks.size < MAX_CHUNKS_PER_FRAME && 
+               performance.now() - startTime < TIME_BUDGET) {
+            
+            // Take the highest priority chunk (first in sorted array)
+            const chunk = chunksToLoad.shift();
+            const { cx, cz, key, isPriority } = chunk;
+            
+            // Skip if chunk is already loaded or being processed
+            if (loadedChunks[key] || pendingChunks.has(key)) continue;
+            
+            // Check throttle for non-priority chunks
+            if (!isPriority && chunkUpdateThrottle.has(key)) {
+                const lastUpdate = chunkUpdateThrottle.get(key);
+                if (performance.now() - lastUpdate < MIN_UPDATE_INTERVAL) {
+                    // Re-queue for later
+                    chunksToLoad.push(chunk);
+                    continue;
+                }
+            }
+            
+            // Mark chunk as pending
+            pendingChunks.set(key, true);
+            chunkUpdateThrottle.set(key, performance.now());
+            processed++;
+            
+            // Send chunk generation request to the worker assigned to this chunk
+            // Always request geometry to be computed in the worker
+            const worker = getWorkerForChunk(cx, cz);
+            worker.postMessage({
+                cx, 
+                cz,
+                requestGeometry: true,  // Always generate geometry in worker
+                constants: getWorkerConstants(),
+                isPriority: isPriority  // Pass priority flag to worker
+            });
+        }
+        
+        // Clean up old throttle entries to prevent memory leak
+        if (chunkUpdateThrottle.size > 200) {
+            const now = performance.now();
+            for (const [key, time] of chunkUpdateThrottle.entries()) {
+                if (now - time > 5000) { // Remove entries older than 5 seconds
+                    chunkUpdateThrottle.delete(key);
+                }
+            }
+        }
+    }
+    
+    function updateChunks() {
         const playerPos = yawObject.position;
         let playerChunkX = Math.floor(playerPos.x / CHUNK_SIZE);
         let playerChunkZ = Math.floor(playerPos.z / CHUNK_SIZE);
         playerChunkX = Math.max(0, Math.min(WORLD_CHUNK_COUNT - 1, playerChunkX));
         playerChunkZ = Math.max(0, Math.min(WORLD_CHUNK_COUNT - 1, playerChunkZ));
-
-        for (let cx = playerChunkX - VISIBLE_RADIUS; cx <= playerChunkX + VISIBLE_RADIUS; cx++) {
-          for (let cz = playerChunkZ - VISIBLE_RADIUS; cz <= playerChunkZ + VISIBLE_RADIUS; cz++) {
-            if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) continue;
-            loadChunk(cx, cz);
-          }
+        
+        // Update camera frustum for visibility checking
+        camera.updateMatrix();
+        camera.updateMatrixWorld();
+        cameraViewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        cameraFrustum.setFromProjectionMatrix(cameraViewMatrix);
+        
+        // During loading, prioritize loading chunks around the player first
+        if (isLoading && !hasStartedChunkLoading) {
+            hasStartedChunkLoading = true;
+            // Load a 5x5 grid around player first for initial loading
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dz = -2; dz <= 2; dz++) {
+                    const cx = playerChunkX + dx;
+                    const cz = playerChunkZ + dz;
+                    if (cx >= 0 && cx < WORLD_CHUNK_COUNT && cz >= 0 && cz < WORLD_CHUNK_COUNT) {
+                        queueChunkLoad(cx, cz);
+                    }
+                }
+            }
         }
-        for (const key in loadedChunks) {
-          const [cx, cz] = key.split(",").map(Number);
-          const dx = cx - playerChunkX;
-          const dz = cz - playerChunkZ;
-          if (Math.sqrt(dx * dx + dz * dz) > VISIBLE_RADIUS + 0.5) {
-            unloadChunk(cx, cz);
-          }
+        
+        // Calculate how far to check for chunks in view based on view frustum
+        const loadDistance = isLoading ? 3 : VISIBLE_RADIUS + 1; // Smaller radius during loading
+        
+        // Clear chunks list if player moved to a new chunk OR rotated camera significantly
+        const playerMovedChunk = (lastPlayerChunkX !== playerChunkX || lastPlayerChunkZ !== playerChunkZ);
+        if (playerMovedChunk || cameraRotationChanged) {
+            if (!isLoading) { // Only clear list after loading is complete
+                if (playerMovedChunk) {
+                    console.log(`Player moved to new chunk (${playerChunkX}, ${playerChunkZ}), clearing chunk list`);
+                } else if (cameraRotationChanged) {
+                    console.log(`Camera rotated, updating visible chunks`);
+                }
+                chunksToLoad.length = 0; // Clear the array
+                needsQueueSort = false; // No need to sort empty array
+                cameraRotationChanged = false; // Reset flag
+            }
+            lastPlayerChunkX = playerChunkX;
+            lastPlayerChunkZ = playerChunkZ;
         }
-      }
+        
+        // Remove chunks from list that are too far away (but NOT based on view)
+        if (!isLoading && chunksToLoad.length > 0) {
+            const beforeCount = chunksToLoad.length;
+            chunksToLoad.splice(0, chunksToLoad.length, ...chunksToLoad.filter(({ cx, cz }) => {
+                // Only distance check - don't remove if out of view
+                const dx = cx - playerChunkX;
+                const dz = cz - playerChunkZ;
+                const distance = Math.sqrt(dx*dx + dz*dz);
+                
+                // Keep chunks within visible radius (view check done during queueing)
+                return distance <= VISIBLE_RADIUS;
+            }));
+            const afterCount = chunksToLoad.length;
+            if (beforeCount !== afterCount) {
+                console.log(`Pruned ${beforeCount - afterCount} chunks from list (${beforeCount} -> ${afterCount})`);
+            }
+        }
 
-      /********************************************
-       * Block Modification (Place / Break)
-       ********************************************/
-      function modifyBlockAt(worldPos, value) {
+        // Check chunks within visible radius and load only those in view
+        for (let dx = -loadDistance; dx <= loadDistance; dx++) {
+            for (let dz = -loadDistance; dz <= loadDistance; dz++) {
+                const cx = playerChunkX + dx;
+                const cz = playerChunkZ + dz;
+                
+                if (cx < 0 || cx >= WORLD_CHUNK_COUNT || cz < 0 || cz >= WORLD_CHUNK_COUNT) {
+                    continue;
+                }
+                
+                const key = `${cx},${cz}`;
+                
+                // During loading, load all chunks in the smaller radius
+                if (isLoading) {
+                    queueChunkLoad(cx, cz);
+                    continue;
+                }
+                
+                // Skip already loaded chunks (they stay loaded)
+                if (loadedChunks[key]) {
+                    continue;
+                }
+                
+                // Only load UNLOADED chunks within visible radius AND in camera view
+                const distanceToPlayer = Math.sqrt(dx*dx + dz*dz);
+                if (distanceToPlayer <= VISIBLE_RADIUS && isChunkInView(cx, cz)) {
+                    queueChunkLoad(cx, cz);
+                }
+            }
+        }
+
+        // Unload chunks that are too far (but NOT based on view - keep loaded chunks)
+        if (!isLoading) {
+            for (const key in loadedChunks) {
+                const [cx, cz] = key.split(",").map(Number);
+                
+                // Only distance-based culling (don't unload just because out of view)
+                const dx = cx - playerChunkX;
+                const dz = cz - playerChunkZ;
+                const distance = Math.sqrt(dx*dx + dz*dz);
+                
+                // Only unload chunks beyond visible radius
+                if (distance > VISIBLE_RADIUS) {
+                    unloadChunk(cx, cz);
+                }
+            }
+        }
+    }
+    
+    // Block Modification (Place / Break)
+    function modifyBlockAt(worldPos, value) {
+        // In spectator mode, disable interactions.
+        if (gameMode === "spectator") return;
+        
         const gx = Math.floor(worldPos.x);
         const gy = Math.floor(worldPos.y);
         const gz = Math.floor(worldPos.z);
         const cx = Math.floor(gx / CHUNK_SIZE);
         const cz = Math.floor(gz / CHUNK_SIZE);
         const key = `${cx},${cz}`;
+        
         if (!chunkDataStore[key]) {
-          console.log("Chunk not loaded. Cannot modify block.");
-          return;
+            console.log("Chunk not loaded. Cannot modify block.");
+            return;
         }
+        
         const localX = gx - cx * CHUNK_SIZE;
         const localZ = gz - cz * CHUNK_SIZE;
-        if (
-          localX < 0 || localX >= CHUNK_SIZE ||
-          gy < 0 || gy >= WORLD_HEIGHT ||
-          localZ < 0 || localZ >= CHUNK_SIZE
-        ) {
-          console.log("Block coordinates out of range.");
-          return;
+        
+        if (gy < 0 || gy >= WORLD_HEIGHT) {
+            console.log("Block coordinates out of range.");
+            return;
         }
+        
+    // Modify the block (sparse-aware)
+        if (!chunkDataStore[key][localX]) chunkDataStore[key][localX] = [];
+        if (!chunkDataStore[key][localX][gy]) chunkDataStore[key][localX][gy] = [];
         chunkDataStore[key][localX][gy][localZ] = value;
-        updateChunk(cx, cz);
-      }
 
-      /********************************************
-       * Initialization & Rendering
-       ********************************************/
-      function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x88ccff);
-        scene.fog = new THREE.Fog(0x88ccff, 0, 150);
+        // Maintain heightMap if present
+        const chunk = chunkDataStore[key];
+        if (chunk.heightMap instanceof Uint16Array) {
+            const idx = localZ * CHUNK_SIZE + localX;
+            if (value !== 0) {
+                // If placing a block higher than current top, update
+                if (gy > chunk.heightMap[idx]) chunk.heightMap[idx] = gy;
+            } else {
+                // If removing the top block, rescan downward to find new top
+                if (gy >= chunk.heightMap[idx]) {
+                    let newTop = 0;
+                    for (let yy = gy - 1; yy >= 0; yy--) {
+                        const r = chunk[localX] && chunk[localX][yy];
+                        if (r && r[localZ]) { newTop = yy; break; }
+                    }
+                    chunk.heightMap[idx] = newTop;
+                }
+            }
+        }
 
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+    // Invalidate height cache for this column so rain/splash stays accurate
+    groundHeightCache.delete(`${gx},${gz}`);
+        
+    // Send update to worker and wait for response before updating visuals
+    // Provide the specific modified local positions so the update worker can do a delta rebuild
+    sendChunkUpdate(cx, cz, chunkDataStore[key], [{ x: localX, y: gy, z: localZ }]);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(1, 1, 0.5);
-        scene.add(directionalLight);
+        // --- Immediate visual overlay for instant feedback ---
+        // Create or update a transient mesh showing the placed/removed block so the player sees
+        // the change immediately while the dedicated update worker rebuilds the chunk.
+        const transientKey = `transient_${key}`;
+        if (!transientChunkOverlays) transientChunkOverlays = {};
+        if (!transientChunkOverlays[key]) {
+            const g = new THREE.Group();
+            g.name = `transient_${key}`;
+            transientChunkOverlays[key] = g;
+            scene.add(g);
+        }
+
+        // Remove any existing overlay for this specific block position first
+        const overlayGroup = transientChunkOverlays[key];
+        // Remove any child at same position
+        for (let i = overlayGroup.children.length - 1; i >= 0; i--) {
+            const child = overlayGroup.children[i];
+            if (child.userData && child.userData.blockPos && child.userData.blockPos[0] === gx && child.userData.blockPos[1] === gy && child.userData.blockPos[2] === gz) {
+                overlayGroup.remove(child);
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+        }
+
+        // If placing a block, add a small mesh; if removing, do nothing (removal will be visible)
+        if (value !== 0) {
+            const blockId = value;
+            const blockName = BLOCK_NAMES[blockId] || Object.keys(blockColors)[0] || null;
+            const props = blockName ? blockColors[blockName] || {} : {};
+            const geom = new THREE.BoxGeometry(1,1,1);
+            const matProps = { color: 0xffffff };
+            if (props.texture) {
+                matProps.map = props.texture;
+                props.texture.needsUpdate = true;
+            } else if (props.color && props.color.isColor) {
+                matProps.color = props.color;
+            } else if (props.color && typeof props.color === 'object') {
+                matProps.color = new THREE.Color(props.color.r, props.color.g, props.color.b);
+            }
+            const mat = new THREE.MeshLambertMaterial(matProps);
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.set(gx + 0.5, gy + 0.5, gz + 0.5);
+            mesh.userData = { blockPos: [gx, gy, gz], transientFor: key };
+            overlayGroup.add(mesh);
+        }
+
+        // Update affected chunks with PRIORITY
+        const chunksToUpdate = new Set();
+        chunksToUpdate.add(key);
+        
+        // Add neighboring chunks if we're on a boundary
+        if (localX === 0 && cx > 0) chunksToUpdate.add(`${cx-1},${cz}`);
+        if (localX === CHUNK_SIZE - 1 && cx < WORLD_CHUNK_COUNT - 1) chunksToUpdate.add(`${cx+1},${cz}`);
+        if (localZ === 0 && cz > 0) chunksToUpdate.add(`${cx},${cz-1}`);
+        if (localZ === CHUNK_SIZE - 1 && cz < WORLD_CHUNK_COUNT - 1) chunksToUpdate.add(`${cx},${cz+1}`);
+
+        // Update all affected chunks with PRIORITY (modified chunks update first!)
+        for (const chunkKey of chunksToUpdate) {
+            const [updateCx, updateCz] = chunkKey.split(',').map(Number);
+            if (chunkDataStore[chunkKey]) {
+                // Mark as priority and update immediately
+                queuePriorityChunkUpdate(updateCx, updateCz);
+            }
+        }
+    }
+
+    // Initialization & Rendering & Input Handling
+    async function init() {
+        // Initialize GamePack system first
+        try {
+            await GamePackLoader.initialize();
+            console.log("GamePack system initialized successfully");
+            
+            // Apply game pack data to existing systems
+            applyGamePackData();
+        } catch (error) {
+            console.error("Failed to initialize GamePack system:", error);
+            console.log("Continuing with default data...");
+        }
+        
+    scene = new THREE.Scene();
+    // Set a static clear sky background, no fog
+    scene.background = new THREE.Color(0x88ccff);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    if (THREE.PCFSoftShadowMap) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // Hemisphere light for soft ambient fill (sky + ground)
+    hemiLight = new THREE.HemisphereLight(0xddeeff, 0x444433, 0.35);
+    scene.add(hemiLight);
+
+    // Directional "sun" light with shadows
+    sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    sunLight.position.set(25, 60, 25);
+    sunLight.castShadow = true;
+    // Shadow frustum tuned for local area around player
+    const c = 125; // half-extent in world units
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 800;
+    sunLight.shadow.camera.left = -c;
+    sunLight.shadow.camera.right = c;
+    sunLight.shadow.camera.top = c;
+    sunLight.shadow.camera.bottom = -c;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    // Improve edge contact and reduce light leaks at face edges (without changing map size/type or frustum)
+    // Small negative bias pulls the shadow closer to casters; normalBias offsets by surface normal to avoid acne.
+    sunLight.shadow.bias = 0.0008;
+    sunLight.shadow.normalBias = 0.35;
+    scene.add(sunLight);
+
+    // Removed lightning light in simplified build
+
+    // Add block highlight box
+    highlightMesh = createHighlightBox();
+    scene.add(highlightMesh);
 
         // Set up camera and first-person hierarchy.
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         // Position the camera at 80% of the cylinder height (simulating the head).
         camera.position.set(0, 0.8 * playerHeight, 0);
-        pitchObject = new THREE.Object3D();
-        pitchObject.add(camera);
         yawObject = new THREE.Object3D();
-        // Place the player near the center of the world.
-        yawObject.position.set(
-          (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2,
-          WORLD_HEIGHT,
-          (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2
-        );
-        yawObject.add(pitchObject);
-        scene.add(yawObject);
+        
+        // Place the player near the center of the world
+        let startX = (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2;
+        let startZ = (WORLD_CHUNK_COUNT * CHUNK_SIZE) / 2;
+        let startY = 100; // Start high up and let gravity bring us down
+        yawObject.position.set(startX, startY, startZ);
 
+        // Remove direct addition of camera and add it to a new holder for water effect
+        cameraEffect = new THREE.Object3D();
+        cameraEffect.add(camera);
+        yawObject.add(cameraEffect);
+        scene.add(yawObject);
+        // Weather/precipitation removed in simplified build
+        
+        // Preload visible chunks so the world is ready.
+        updateChunks();
+        
         // Setup Pointer Lock.
         const element = document.body;
-        element.addEventListener("click", function () {
-          element.requestPointerLock();
-        });
         document.addEventListener("pointerlockchange", onPointerLockChange, false);
         document.addEventListener("pointerlockerror", onPointerLockError, false);
         document.addEventListener("mousemove", onMouseMove, false);
@@ -567,162 +2166,542 @@
         window.addEventListener("resize", onWindowResize, false);
 
         animate();
-      }
+    }
 
-      function onWindowResize() {
+    function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-      }
+    }
 
-      function onPointerLockChange() {
-        controlsEnabled = (document.pointerLockElement === document.body);
-      }
-      function onPointerLockError() {
+    function onPointerLockChange() {
+        controlsEnabled = !isLoading && (document.pointerLockElement === document.body);
+        // Show or hide pause screen when unlocked
+        const pauseEl = document.getElementById('pause-screen');
+        if (!controlsEnabled && !isLoading) {
+            pauseEl.style.display = 'flex';
+        } else {
+            pauseEl.style.display = 'none';
+        }
+    }
+    function onPointerLockError() {
         console.error("PointerLock Error");
-      }
-      function onMouseMove(event) {
+    }
+    function onMouseMove(event) {
         if (!controlsEnabled) return;
         const movementX = event.movementX || 0;
         const movementY = event.movementY || 0;
+        
+        // Track camera rotation changes
+        const oldYaw = yawObject.rotation.y;
+        const oldPitch = pitch;
+        
         yawObject.rotation.y -= movementX * 0.002;
-        pitchObject.rotation.x -= movementY * 0.002;
-        pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
-      }
+        pitch -= movementY * 0.002;
+        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+        
+        // Detect significant rotation change (more than 2 degrees)
+        const yawDelta = Math.abs(yawObject.rotation.y - lastCameraYaw);
+        const pitchDelta = Math.abs(pitch - lastCameraPitch);
+        const ROTATION_THRESHOLD = 0.035; // ~2 degrees
+        
+        if (yawDelta > ROTATION_THRESHOLD || pitchDelta > ROTATION_THRESHOLD) {
+            cameraRotationChanged = true;
+            lastCameraYaw = yawObject.rotation.y;
+            lastCameraPitch = pitch;
+        }
+        camera.rotation.x = pitch;
+    }
 
-      function getMovementAcceleration(delta) {
+    function getMovementAcceleration(delta) {
+        var transportationSpeed = 1;
+        if (isFlying) {
+            transportationSpeed = 2;
+        }
         const forward = new THREE.Vector3(0, 0, -1)
-          .applyAxisAngle(new THREE.Vector3(0, 1, 0), yawObject.rotation.y);
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), yawObject.rotation.y);
         const right = new THREE.Vector3(1, 0, 0)
-          .applyAxisAngle(new THREE.Vector3(0, 1, 0), yawObject.rotation.y);
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), yawObject.rotation.y);
         const accel = new THREE.Vector3();
         if (moveForward) accel.add(forward);
         if (moveBackward) accel.sub(forward);
         if (moveLeft) accel.sub(right);
         if (moveRight) accel.add(right);
         if (accel.length() > 0) {
-          accel.normalize().multiplyScalar(20 * delta);
+            // Use a higher multiplier when running.
+            accel.normalize().multiplyScalar((isRunning ? 70 : 40) * transportationSpeed * delta);
         }
         return accel;
-      }
+    }
 
-      function onKeyDown(event) {
+    function onKeyDown(event) {
+        const currentTime = performance.now();
         switch (event.code) {
-          case "KeyW":
-          case "ArrowUp":
+        case "KeyW":
+        case "ArrowUp":
+            if (!moveForward && (currentTime - lastWPressTime < 300)) {
+                isRunning = true;
+            }
+            lastWPressTime = currentTime;
             moveForward = true;
+            KEY["Forward"] = true;
             break;
-          case "KeyS":
-          case "ArrowDown":
+        case "KeyS":
+        case "ArrowDown":
             moveBackward = true;
+            KEY["Backward"] = true;
             break;
-          case "KeyA":
-          case "ArrowLeft":
+        case "KeyA":
+        case "ArrowLeft":
             moveLeft = true;
+            KEY["Left"] = true;
             break;
-          case "KeyD":
-          case "ArrowRight":
+        case "KeyD":
+        case "ArrowRight":
             moveRight = true;
+            KEY["Right"] = true;
             break;
-          case "Space":
-            if (canJump) {
-              velocity.y = jumpImpulse;
-              canJump = false;
+        case "Space":
+            // Detect double tap on jump (threshold 300ms)
+            if (currentTime - lastJumpTapTime < 300) {
+                // Toggle flying mode only in normal mode and when not in water
+                if (gameMode === "normal" && !isInWater()) {
+                    isFlying = !isFlying;
+                    console.log("Flying: " + isFlying);
+                }
+                lastJumpTapTime = 0;
+                flyUp = false;
+                flyDown = false;
+                break;
+            } else {
+                lastJumpTapTime = currentTime;
+                if (gameMode === "normal") {
+                    if (isFlying) {
+                        flyUp = true;
+                    } else if (canJump) {
+                        velocity.y = jumpImpulse;
+                        canJump = false;
+                    }
+                } else {
+                    // In spectator mode, always fly upward on jump tap
+                    flyUp = true;
+                }
+            }
+            KEY["Jump"] = true;
+            break;
+        case "ShiftLeft":
+        case "ShiftRight":
+            if (gameMode === "normal" && isFlying) {
+                flyDown = true;
+            } else if (gameMode === "spectator") {
+                flyDown = true;
             }
             break;
-        }
-      }
-
-      function onKeyUp(event) {
-        switch (event.code) {
-          case "KeyW":
-          case "ArrowUp":
-            moveForward = false;
+        case "KeyO":
+            // Toggle game mode between normal and spectator
+            if (gameMode === "normal") {
+                gameMode = "spectator";
+                isFlying = true; // always flying
+                console.log("Game Mode: Spectator");
+            } else {
+                gameMode = "normal";
+                isFlying = false; // revert to normal flying state
+                console.log("Game Mode: Normal");
+            }
             break;
-          case "KeyS":
-          case "ArrowDown":
+        case "F3":
+            // Toggle debug info display
+            event.preventDefault(); // Prevent browser dev tools
+            showDebugInfo = !showDebugInfo;
+            console.log("Debug Info: " + (showDebugInfo ? "On" : "Off"));
+            break;
+        }
+    }
+
+    function onKeyUp(event) {
+        switch (event.code) {
+        case "KeyW":
+        case "ArrowUp":
+            moveForward = false;
+            isRunning = false;
+            break;
+        case "KeyS":
+        case "ArrowDown":
             moveBackward = false;
             break;
-          case "KeyA":
-          case "ArrowLeft":
+        case "KeyA":
+        case "ArrowLeft":
             moveLeft = false;
             break;
-          case "KeyD":
-          case "ArrowRight":
+        case "KeyD":
+        case "ArrowRight":
             moveRight = false;
             break;
+        case "Space":
+            flyUp = false;
+            break;
+        case "ShiftLeft":
+        case "ShiftRight":
+            flyDown = false;
+            break;
         }
-      }
+    }
 
-      /********************************************
-       * Block Interaction via Raycasting
-       ********************************************/
-      // Cast a ray from the center of the camera. For left-click (break)
-      // subtract a tiny offset; for right-click (place) add ~0.51 along the face normal.
-      function onMouseDown(event) {
+    // Block Interaction via Raycasting
+    function onMouseDown(event) {
+        // In spectator mode, disable interactions.
+        if (gameMode === "spectator") return;
+        // Disable mining/placing when pointer lock not active
         if (!controlsEnabled) return;
-        pointer.set(0, 0);
+        // Set pointer coordinates: use screen coords when unlocked, center when locked
+        if (document.pointerLockElement === document.body) {
+            pointer.set(0, 0);
+        } else {
+            pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        }
         raycaster.setFromCamera(pointer, camera);
-        const intersects = raycaster.intersectObjects(Object.values(loadedChunks));
-        if (intersects.length > 0) {
-          const intersect = intersects[0];
-          if (event.button === 0) { // Left click: break block.
+        // Include all meshes in nested groups
+        const intersects = raycaster.intersectObjects(Object.values(loadedChunks), true);
+        if (intersects.length >  0) {
+        const intersect = intersects[0];
+        if (event.button === 0) { // Left click: break block.
             const breakPos = new THREE.Vector3(
-              Math.floor(intersect.point.x - intersect.face.normal.x * 0.01),
-              Math.floor(intersect.point.y - intersect.face.normal.y * 0.01),
-              Math.floor(intersect.point.z - intersect.face.normal.z * 0.01)
+            Math.floor(intersect.point.x - intersect.face.normal.x * 0.01),
+            Math.floor(intersect.point.y - intersect.face.normal.y * 0.01),
+            Math.floor(intersect.point.z - intersect.face.normal.z * 0.01)
             );
             modifyBlockAt(breakPos, 0);
-          } else if (event.button === 2) { // Right click: place block.
+        } else if (event.button === 2) { // Right click: place block.
             const placePos = new THREE.Vector3(
-              Math.floor(intersect.point.x + intersect.face.normal.x * 0.51),
-              Math.floor(intersect.point.y + intersect.face.normal.y * 0.51),
-              Math.floor(intersect.point.z + intersect.face.normal.z * 0.51)
+            Math.floor(intersect.point.x + intersect.face.normal.x * 0.51),
+            Math.floor(intersect.point.y + intersect.face.normal.y * 0.51),
+            Math.floor(intersect.point.z + intersect.face.normal.z * 0.51)
             );
             modifyBlockAt(placePos, 2); // Place a dirt block by default.
             // You could modify this to allow players to select which material to place.
-          }
         }
-      }
-      document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+        }
+    }
+    document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 
-      /********************************************
-       * Animation, Physics & Collision Loop
-       ********************************************/
-      function animate() {
+    // Animation, Physics & Collision Loop
+    function animate() {
         requestAnimationFrame(animate);
         const time = performance.now();
-        const delta = (time - prevTime) / 1000;
+        const delta = Math.min((time - prevTime) / 1000, 0.1);
         prevTime = time;
 
+        // Calculate FPS
+        fpsCounter++;
+        if (time - fpsLastTime >= 1000) {
+            currentFPS = Math.round((fpsCounter * 1000) / (time - fpsLastTime));
+            fpsCounter = 0;
+            fpsLastTime = time;
+            
+            // Reset chunk updates counter
+            chunkUpdatesThisSecond = 0;
+            chunkUpdatesLastTime = time;
+        }
+
+        // Update game info display every frame
+        if (!isLoading && showDebugInfo) {
+            updateGameInfo();
+        } else if (!showDebugInfo) {
+            // Hide debug info but keep version
+            const infoElement = document.getElementById('info');
+            infoElement.innerHTML = `
+                <div style="background: rgba(0,0,0,0.7); padding: 8px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace;">
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.10</div>
+                    <div style="margin-top: 4px; font-size: 10px; color: #cccccc;">Press F3 to toggle debug info</div>
+                </div>
+            `;
+        }
+    
         if (controlsEnabled) {
-          velocity.x -= velocity.x * 10 * delta;
-          velocity.z -= velocity.z * 10 * delta;
-          velocity.y -= 9.8 * 5 * delta; // Gravity
+            if (gameMode === "spectator") {
+                // Always flying. Skip gravity and collision:
+                velocity.x -= velocity.x * 10 * delta;
+                velocity.z -= velocity.z * 10 * delta;
+                const accel = getMovementAcceleration(delta);
+                velocity.x += accel.x;
+                velocity.z += accel.z;
+                yawObject.position.x += velocity.x * delta;
+                yawObject.position.z += velocity.z * delta;
+                // Vertical movement via flyUp/flyDown (speed = 30 u/sec)
+                if (flyUp) { yawObject.position.y += 30 * delta; }
+                if (flyDown) { yawObject.position.y -= 30 * delta; }
+            } else {
+                if (!isFlying) {
+                    // Normal physics only (water physics removed)
+                    velocity.x -= velocity.x * 10 * delta;
+                    velocity.z -= velocity.z * 10 * delta;
+                    velocity.y -= 9.8 * 5 * delta; // gravity
 
-          const accel = getMovementAcceleration(delta);
-          velocity.x += accel.x;
-          velocity.z += accel.z;
+                    const accel = getMovementAcceleration(delta);
+                    velocity.x += accel.x;
+                    velocity.z += accel.z;
 
-          yawObject.position.x += velocity.x * delta;
-          yawObject.position.z += velocity.z * delta;
-          resolveHorizontalCollisions();
+                    // Use new collision mover
+                    const desired = new THREE.Vector3(
+                        velocity.x * delta,
+                        velocity.y * delta,
+                        velocity.z * delta
+                    );
+                    collideAndSlide(desired, delta);
+                } else {
+                    // Normal flying when toggled.
+                    velocity.x -= velocity.x * 10 * delta;
+                    velocity.z -= velocity.z * 10 * delta;
+                    const accel = getMovementAcceleration(delta);
+                    velocity.x += accel.x;
+                    velocity.z += accel.z;
+                    yawObject.position.x += velocity.x * delta;
+                    yawObject.position.z += velocity.z * delta;
+                    if (flyUp) { yawObject.position.y += 30 * delta; }
+                    if (flyDown) { yawObject.position.y -= 30 * delta; }
+                }
+            }
+            // Update chunks only when the player's chunk position changes
+            let newChunkX = Math.floor(yawObject.position.x / CHUNK_SIZE);
+            let newChunkZ = Math.floor(yawObject.position.z / CHUNK_SIZE);
+            if (newChunkX !== lastPlayerChunkX || newChunkZ !== lastPlayerChunkZ) {
+                updateChunks();
+                lastPlayerChunkX = newChunkX;
+                lastPlayerChunkZ = newChunkZ;
+            }
+        }
+        
+        // Process chunk loading queue
+        processChunkQueue();
+    
+        // New underwater overlay update:
+        const overlay = document.getElementById("underwater-overlay");
+        // Check player's head position (using an offset relative to player height)
+        const headY = Math.floor(yawObject.position.y + 0.8 * playerHeight);
+        const blockAtHead = getBlockAt(Math.floor(yawObject.position.x), headY, Math.floor(yawObject.position.z));
+        if (blockAtHead === BLOCK_TYPES.water) {
+            overlay.style.display = "block";
+        } else {
+            overlay.style.display = "none";
+        }
 
-          const originalY = yawObject.position.y;
-          yawObject.position.y += velocity.y * delta;
-          if (collidesCylinder(yawObject.position.y, yawObject.position.x, yawObject.position.z)) {
-            if (velocity.y < 0) canJump = true;
-            yawObject.position.y = originalY;
-            velocity.y = 0;
-          }
+        // Remove underwater camera wobble effect (keep overlay only)
+        cameraEffect.rotation.set(0, 0, 0);
 
-          updateChunks();
+        // Smooth camera step-up easing: temporarily lower camera and ease back
+        if (cameraStepLag > 0) {
+            const reduce = Math.min(cameraStepLag, stepSmoothSpeed * delta);
+            cameraStepLag -= reduce;
+        }
+        // Apply camera vertical offset (lowered by lag amount)
+        camera.position.y = 0.8 * playerHeight - cameraStepLag;
+    
+    // Weather and precipitation removed
+
+        // Update lighting: keep sun above the player and tune intensity by weather
+        if (sunLight && yawObject) {
+            const px = yawObject.position.x;
+            const py = yawObject.position.y;
+            const pz = yawObject.position.z;
+            sunLight.position.set(px + 40, py + 80, pz + 40);
+            sunLight.target.position.set(px, py, pz);
+            if (!sunLight.target.parent) scene.add(sunLight.target);
+            sunLight.intensity = 1.0;
+            if (hemiLight) hemiLight.intensity = 0.45;
+        }
+    
+
+        // Block hover detection and highlighting
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(Object.values(loadedChunks), true);
+        
+        if (intersects.length > 0) {
+            const intersect = intersects[0];
+            
+            // Calculate block position (same method as block breaking)
+            if (intersect.face) {
+                const blockPos = new THREE.Vector3(
+                    Math.floor(intersect.point.x - intersect.face.normal.x * 0.01),
+                    Math.floor(intersect.point.y - intersect.face.normal.y * 0.01),
+                    Math.floor(intersect.point.z - intersect.face.normal.z * 0.01)
+                );
+                
+                // Get the block type at this position
+                const blockType = getBlockAt(blockPos.x, blockPos.y, blockPos.z);
+                
+                if (blockType !== 0 && blockType !== null && blockType !== undefined) {
+                    // Update highlight mesh position (center on block)
+                    highlightMesh.position.set(blockPos.x + 0.5, blockPos.y + 0.5, blockPos.z + 0.5);
+                    highlightMesh.visible = true;
+                    
+                    // Store hovered block info
+                    hoveredBlock = {
+                        x: blockPos.x,
+                        y: blockPos.y,
+                        z: blockPos.z,
+                        type: blockType
+                    };
+                } else {
+                    highlightMesh.visible = false;
+                    hoveredBlock = null;
+                }
+            } else {
+                highlightMesh.visible = false;
+                hoveredBlock = null;
+            }
+        } else {
+            highlightMesh.visible = false;
+            hoveredBlock = null;
         }
 
         renderer.render(scene, camera);
-      }
+    }
 
-      init();
+    // Setup Pause Screen Button Handlers
+    const resumeBtn = document.getElementById('pause-resume');
+    const settingsBtn = document.getElementById('pause-settings');
+    const saveBtn = document.getElementById('pause-save');
+    const quitBtn = document.getElementById('pause-quit');
+    resumeBtn.addEventListener('click', () => {
+        document.body.requestPointerLock();
+    });
+    // Replace Settings placeholder with FOV prompt
+    settingsBtn.addEventListener('click', () => {
+        const currentFov = camera.fov;
+        const input = prompt('Set Field of View (FOV) between 10 and 150:', currentFov);
+        const newFov = parseFloat(input);
+        if (!isNaN(newFov) && newFov > 10 && newFov < 150) {
+            camera.fov = newFov;
+            camera.updateProjectionMatrix();
+       
+        } else if (input !== null) {
+            alert('Invalid FOV value. Please enter a number between 10 and 150.');
+        }
+    });
+    saveBtn.addEventListener('click', () => {
+        // Placeholder for save functionality
+        alert('Save feature is not implemented yet.');
+    });
+    quitBtn.addEventListener('click', () => {
+               // Placeholder for quit functionality
+        alert('Quit feature is not implemented yet.');
+    });
+
+    // Wait for saved world load before initialization and chunk generation
+    loadSavedWorldPromise.then(() => {
+        init();
+    });
+    
+    // Expose GamePack utilities to global scope for debugging
+    window.GamePackLoader = GamePackLoader;
+    window.GamePackUtils = GamePackUtils;
+    window.WATCHER = WATCHER;
+    
+    // Console commands for game pack management
+    window.gamePackCommands = {
+        // List all loaded packs
+        listPacks() {
+            console.log("Loaded Game Packs:", GamePackLoader.getPackNames());
+            return GamePackLoader.getPackInfo();
+        },
+        
+        // Show detailed pack info
+        showPackInfo(packName = null) {
+            if (packName) {
+                const packData = GamePackLoader.getPackData(packName);
+                if (packData) {
+                    console.log(`=== ${packName} ===`);
+                    console.log("Path:", packData.basePath);
+                    console.log("Blocks:", Object.keys(packData.blocks));
+                    console.log("Textures:", Object.keys(packData.textures));
+                    return packData;
+                } else {
+                    console.log(`Pack "${packName}" not found`);
+                    return null;
+                }
+            } else {
+                return GamePackUtils.debugPackContents();
+            }
+        },
+        
+        // Reload a specific pack
+        async reloadPack(packName) {
+            try {
+                console.log(`Reloading pack: ${packName}`);
+                const result = await GamePackLoader.reloadPack(packName);
+                applyGamePackData();
+                console.log(`Successfully reloaded: ${packName}`);
+                return result;
+            } catch (error) {
+                console.error(`Failed to reload pack "${packName}":`, error);
+                return null;
+            }
+        },
+        
+        // Add a new pack to the watcher
+        async addPack(packName) {
+            if (!WATCHER.gamePacks.includes(packName)) {
+                WATCHER.gamePacks.push(packName);
+                try {
+                    const result = await GamePackLoader.loadGamePack(packName);
+                    applyGamePackData();
+                    console.log(`Successfully added pack: ${packName}`);
+                    return result;
+                } catch (error) {
+                    console.error(`Failed to add pack "${packName}":`, error);
+                    // Remove from watcher if loading failed
+                    const index = WATCHER.gamePacks.indexOf(packName);
+                    if (index > -1) {
+                        WATCHER.gamePacks.splice(index, 1);
+                    }
+                    return null;
+                }
+            } else {
+                console.log(`Pack "${packName}" is already active`);
+                return GamePackLoader.getPackData(packName);
+            }
+        },
+        
+        // Remove a pack from the watcher (except **:Default:**)
+        removePack(packName) {
+            if (packName === "**:Default:**") {
+                console.error("Cannot remove the **:Default:** pack");
+                return false;
+            }
+            
+            const index = WATCHER.gamePacks.indexOf(packName);
+            if (index > -1) {
+                WATCHER.gamePacks.splice(index, 1);
+                GamePackLoader.loadedPacks.delete(packName);
+                console.log(`Removed pack: ${packName}`);
+                applyGamePackData(); // Reapply remaining packs
+                return true;
+            } else {
+                console.log(`Pack "${packName}" not found in watcher`);
+                return false;
+            }
+        },
+        
+        // Show merged data
+        showMergedData(dataType = 'all') {
+            if (dataType === 'all') {
+                console.log("Blocks:", GamePackLoader.getMergedData('blocks'));
+                console.log("Textures:", GamePackLoader.getMergedData('textures'));
+            } else {
+                console.log(`${dataType}:`, GamePackLoader.getMergedData(dataType));
+            }
+        }
+    };
+    
+    // Log console commands info
+    console.log("Game Pack Console Commands Available:");
+    console.log("- gamePackCommands.listPacks() - List all loaded packs");
+    console.log("- gamePackCommands.showPackInfo(packName) - Show detailed pack info");
+    console.log("- gamePackCommands.reloadPack(packName) - Reload a specific pack");
+    console.log("- gamePackCommands.addPack(packName) - Add and load a new pack");
+    console.log("- gamePackCommands.removePack(packName) - Remove a pack");
+    console.log("- gamePackCommands.showMergedData(type) - Show merged data");
     </script>
-  </body>
+</body>
 </html>

@@ -1,0 +1,89 @@
+{
+    "structures": {
+        "tree": {
+            "name": "Oak Tree",
+            "category": "vegetation",
+            "type": "natural",
+            "dimensions": {
+                "width": 5,
+                "height": 70,
+                "depth": 5
+            },
+            "generator": {
+                "type": "procedural",
+                "trunkHeight": "40-60",
+                "leafRadius": 2,
+                "trunkMaterial": "wood",
+                "leafMaterial": "leaves"
+            },
+            "placement": {
+                "surface": true,
+                "minHeight": 60,
+                "maxHeight": 200,
+                "avoidWater": true,
+                "spacing": 3
+            },
+            "biomes": ["plains", "forest", "dense_forest", "meadow", "hills", "lake", "swamp", "tundra", "plateau"],
+            "rarity": "common",
+            "description": "A standard oak tree with a wooden trunk and leafy canopy"
+        },
+        "house": {
+            "name": "Village House",
+            "category": "building",
+            "type": "structure",
+            "dimensions": {
+                "width": 5,
+                "height": 5,
+                "depth": 7
+            },
+            "generator": {
+                "type": "schematic",
+                "materials": {
+                    "foundation": "stone",
+                    "walls": "wood",
+                    "roof": "wood",
+                    "door": "air",
+                    "windows": "air"
+                },
+                "features": {
+                    "door": true,
+                    "windows": 4,
+                    "roof": true
+                }
+            },
+            "placement": {
+                "surface": true,
+                "minHeight": 62,
+                "maxHeight": 120,
+                "avoidWater": true,
+                "spacing": 50,
+                "flatGround": true
+            },
+            "biomes": ["plains"],
+            "rarity": "rare",
+            "description": "A small wooden house with stone foundation, perfect for villages"
+        }
+    },
+    "structureGenerators": {
+        "tree": {
+            "algorithm": "procedural_tree",
+            "parameters": {
+                "trunk_height_range": [40, 60],
+                "leaf_radius": 2,
+                "leaf_density": 0.8,
+                "trunk_width": 1,
+                "leaf_shape": "sphere"
+            }
+        },
+        "house": {
+            "algorithm": "box_structure",
+            "parameters": {
+                "foundation_thickness": 1,
+                "wall_thickness": 1,
+                "roof_type": "flat",
+                "door_height": 2,
+                "window_size": 1
+            }
+        }
+    }
+}
