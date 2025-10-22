@@ -114,6 +114,7 @@
         align-items: center;
         justify-content: center;
         z-index: 10001;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
     }
     #pause-header {
         width: 100%;
@@ -183,7 +184,7 @@
 </head>
 <body>
     <div id="info">
-        Version: Alpha.10.0.1
+        Version: Alpha.10.0.2
     </div>
     <!-- Crosshair -->
     <div id="crosshair"></div>
@@ -204,7 +205,7 @@
         <div id="pause-header">
             <h1 class="title-1">Wonder</h1>
             <h1 class="title-2">World</h1>
-            <p class="version">Version Alpha.10.0.1</p>
+            <p class="version">Version Alpha.10.0.2</p>
         </div>
         <div id="pause-buttons">
             <button id="pause-resume">Resume</button>
@@ -937,7 +938,7 @@
         const infoElement = document.getElementById('info');
         infoElement.innerHTML = `
             <div style="background: rgba(0,0,0,0.7); padding: 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; font-family: 'Courier New', monospace; max-width: 280px;">
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.10.0.1</div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.10.0.2</div>
                 
                 <div style="margin-bottom: 6px;">
                     <div style="color: #88ff88;">Performance:</div>
@@ -1466,7 +1467,7 @@
             scene.remove(loadedChunks[key]);
             loadedChunks[key].traverse(obj => {
                 if (obj.geometry) obj.geometry.dispose();
-                if (obj.material) obj.material.dispose();
+                if (obj.material && !(obj.material.userData && obj.material.userData.shared)) obj.material.dispose();
             });
             delete loadedChunks[key];
         }
@@ -1628,6 +1629,24 @@
         // Build new group from raw geometryData
         const group = new THREE.Group();
 
+        // Reusable materials to reduce allocations per chunk
+        if (!window.__opaqueMat) {
+            window.__opaqueMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
+            window.__opaqueMat.userData = { shared: true };
+        }
+        if (!window.__transparentMat) {
+            const props = blockColors.water || { sideRendering: 'one', transparency: 0.6, alphaTest: 0.1 };
+            window.__transparentMat = new THREE.MeshLambertMaterial({
+                vertexColors: true,
+                transparent: true,
+                depthWrite: false,
+                side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
+                opacity: props.transparency,
+                alphaTest: props.alphaTest || 0.1
+            });
+            window.__transparentMat.userData = { shared: true };
+        }
+
         // Opaque
         if (geometryData.opaque && geometryData.opaque.indices.length) {
             const buf = geometryData.opaque;
@@ -1635,10 +1654,11 @@
             geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
             geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
             geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
+            if (buf.normals && buf.normals.length) {
+                geom.setAttribute('normal', new THREE.BufferAttribute(buf.normals, 3));
+            }
             geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
-            geom.computeVertexNormals();
-            const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
-            const mesh = new THREE.Mesh(geom, mat);
+            const mesh = new THREE.Mesh(geom, window.__opaqueMat);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             mesh.renderOrder = 0;
@@ -1648,14 +1668,16 @@
         // Textured
         if (geometryData.textured) {
             for (const entry of geometryData.textured) {
-                const buf = entry;
+                // Textured
                 const geom = new THREE.BufferGeometry();
-                geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
-                geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
-                geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
+                geom.setAttribute('position', new THREE.BufferAttribute(entry.vertices, 3));
+                geom.setAttribute('uv', new THREE.BufferAttribute(entry.uvs, 2));
+                geom.setIndex(new THREE.BufferAttribute(entry.indices, 1));
                 geom.computeVertexNormals();
+                        if (entry.normals && entry.normals.length) {
+                            geom.setAttribute('normal', new THREE.BufferAttribute(entry.normals, 3));
+                        }
                 
-                // Get block and face info from the entry
                 const blockName = entry.blockName || (entry.key ? entry.key.split('_')[0] : 'unknown');
                 const faceName = entry.faceName || (entry.key && entry.key.includes('_') ? entry.key.split('_')[1] : null);
                 
@@ -1709,18 +1731,11 @@
             geom.setAttribute('position', new THREE.BufferAttribute(buf.vertices, 3));
             geom.setAttribute('uv', new THREE.BufferAttribute(buf.uvs, 2));
             geom.setAttribute('color', new THREE.BufferAttribute(buf.colors, 3));
+            if (buf.normals && buf.normals.length) {
+                geom.setAttribute('normal', new THREE.BufferAttribute(buf.normals, 3));
+            }
             geom.setIndex(new THREE.BufferAttribute(buf.indices, 1));
-            geom.computeVertexNormals();
-            const props = blockColors.water || { sideRendering: 'one', transparency: 0.6, alphaTest: 0.1 };
-            const mat = new THREE.MeshLambertMaterial({
-                vertexColors: true,
-                transparent: true,
-                depthWrite: false,
-                side: props.sideRendering === 'both' ? THREE.DoubleSide : THREE.FrontSide,
-                opacity: props.transparency,
-                alphaTest: props.alphaTest || 0.1
-            });
-            const mesh = new THREE.Mesh(geom, mat);
+            const mesh = new THREE.Mesh(geom, window.__transparentMat);
             mesh.castShadow = false; // water/transparent shouldn't cast
             mesh.receiveShadow = true;
             mesh.renderOrder = 2;
@@ -2376,7 +2391,7 @@
             const infoElement = document.getElementById('info');
             infoElement.innerHTML = `
                 <div style="background: rgba(0,0,0,0.7); padding: 8px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace;">
-                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.10.0.1</div>
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.10.0.2</div>
                     <div style="margin-top: 4px; font-size: 10px; color: #cccccc;">Press F3 to toggle debug info</div>
                 </div>
             `;
