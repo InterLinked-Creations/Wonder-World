@@ -183,7 +183,7 @@
 </head>
 <body>
     <div id="info">
-        Version: Alpha.10
+        Version: Alpha.10.0.1
     </div>
     <!-- Crosshair -->
     <div id="crosshair"></div>
@@ -204,7 +204,7 @@
         <div id="pause-header">
             <h1 class="title-1">Wonder</h1>
             <h1 class="title-2">World</h1>
-            <p class="version">Version Alpha.10</p>
+            <p class="version">Version Alpha.10.0.1</p>
         </div>
         <div id="pause-buttons">
             <button id="pause-resume">Resume</button>
@@ -543,10 +543,11 @@
     /* Simplified build: no biome/config systems */
     // Core constants and globals
     const CHUNK_SIZE = 16;
-    const WORLD_HEIGHT = 256;
+    const WORLD_HEIGHT = 400;
     const WORLD_CHUNK_COUNT = 256; // logical world bound for clamping (large but finite)
-    const VISIBLE_RADIUS = 6;      // how many chunks around player to keep loaded
-    const MAX_CHUNKS_PER_FRAME = 4; // throttle worker requests per frame
+    const VISIBLE_RADIUS = 12;      // how many chunks around player to keep loaded
+    const MAX_CHUNKS_PER_FRAME = 8; // throttle worker requests per frame (increased for faster loading)
+    const NUM_WORKERS = 12;          // Use multiple workers for parallel chunk generation
 
     // Loading screen elements and state
     const loadingScreenEl = document.getElementById('loading-screen');
@@ -564,9 +565,28 @@
     // Input state map
     const KEY = {};
 
-    // Chunk tracking / worker
+    // Chunk tracking / worker pool
     const pendingChunks = new Map();
-    var chunkWorker = new Worker('./lib/js/workers/chunkWorker.js');
+    const chunkWorkers = [];
+    
+    // Create worker pool for parallel chunk generation
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        const worker = new Worker('./lib/js/workers/chunkWorker.js');
+        chunkWorkers.push(worker);
+    }
+    
+    // Helper to get consistent worker for a specific chunk (prevents conflicts)
+    // Each chunk always goes to the same worker based on its coordinates
+    function getWorkerForChunk(cx, cz) {
+        // Use a hash function to deterministically assign chunks to workers
+        // This ensures the same chunk always uses the same worker
+        const hash = ((cx & 0xFFFF) << 16) | (cz & 0xFFFF);
+        const workerIndex = Math.abs(hash) % NUM_WORKERS;
+        return chunkWorkers[workerIndex];
+    }
+    
+    // Legacy compatibility - point to first worker
+    var chunkWorker = chunkWorkers[0];
 
     // Caches and helpers
     const groundHeightCache = new Map();
@@ -917,7 +937,7 @@
         const infoElement = document.getElementById('info');
         infoElement.innerHTML = `
             <div style="background: rgba(0,0,0,0.7); padding: 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; font-family: 'Courier New', monospace; max-width: 280px;">
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.10</div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #ffffff;">Wonder World - Alpha.10.0.1</div>
                 
                 <div style="margin-bottom: 6px;">
                     <div style="color: #88ff88;">Performance:</div>
@@ -1431,7 +1451,8 @@
         
         // Request geometry data from the worker; worker will reply via onmessage
         pendingChunks.set(key, true);
-        chunkWorker.postMessage({
+        const worker = getWorkerForChunk(cx, cz);
+        worker.postMessage({
             cx, 
             cz,
             requestGeometry: true,
@@ -1478,7 +1499,8 @@
         
         // Request geometry data from the worker; worker will reply via onmessage
         pendingChunks.set(key, true);
-        chunkWorker.postMessage({
+        const worker = getWorkerForChunk(cx, cz);
+        worker.postMessage({
             cx, 
             cz,
             requestGeometry: true,
@@ -1517,19 +1539,36 @@
         return serializableProps;
     }
 
-    // Helper function to send chunk update to worker
+    // Collect available neighbor chunks from memory (if loaded)
+    function collectNeighborChunks(cx, cz) {
+        const leftKey = `${cx - 1},${cz}`;
+        const rightKey = `${cx + 1},${cz}`;
+        const backKey = `${cx},${cz - 1}`;
+        const frontKey = `${cx},${cz + 1}`;
+        return {
+            left: chunkDataStore[leftKey] || null,
+            right: chunkDataStore[rightKey] || null,
+            back: chunkDataStore[backKey] || null,
+            front: chunkDataStore[frontKey] || null
+        };
+    }
+
+    // Helper function to send chunk update to worker, with neighbors if available
     function sendChunkUpdate(cx, cz, chunkData) {
-        chunkWorker.postMessage({
+        const worker = getWorkerForChunk(cx, cz);
+        const neighbors = collectNeighborChunks(cx, cz);
+        worker.postMessage({
             type: "updateChunk",
             cx: cx,
             cz: cz,
             modifiedChunk: chunkData,
+            neighbors,
             constants: getWorkerConstants()
         });
     }
 
-    // Handle worker messages
-    chunkWorker.onmessage = function(e) {
+    // Unified message handler for all workers
+    function handleWorkerMessage(e) {
         const { cx, cz, geometryData, chunkData, type } = e.data;
         const key = `${cx},${cz}`;
         
@@ -1557,10 +1596,13 @@
         if (chunkData && !geometryData) {
             // Request geometry in a separate message
             pendingChunks.set(key, true);
-            chunkWorker.postMessage({
+            const worker = getWorkerForChunk(cx, cz);
+            const neighbors = collectNeighborChunks(cx, cz);
+            worker.postMessage({
                 cx, 
                 cz,
                 requestGeometry: true,
+                neighbors,
                 constants: getWorkerConstants()
             });
             
@@ -1690,7 +1732,12 @@
         loadedChunks[key] = group;
 
         if (isLoading) chunkLoaded();
-    };
+    }
+    
+    // Attach the unified message handler to all workers
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        chunkWorkers[i].onmessage = handleWorkerMessage;
+    }
     
     function queueChunkLoad(cx, cz) {
         const key = `${cx},${cz}`;
@@ -1771,12 +1818,15 @@
             chunkUpdateThrottle.set(key, performance.now());
             processed++;
             
-            // Send chunk generation request to worker with block properties
+            // Send chunk generation request to the worker assigned to this chunk
             // Always request geometry to be computed in the worker
-            chunkWorker.postMessage({
+            const worker = getWorkerForChunk(cx, cz);
+            const neighbors = collectNeighborChunks(cx, cz);
+            worker.postMessage({
                 cx, 
                 cz,
                 requestGeometry: true,  // Always generate geometry in worker
+                neighbors,
                 constants: getWorkerConstants(),
                 isPriority: isPriority  // Pass priority flag to worker
             });
@@ -1964,22 +2014,32 @@
         // Send update to worker and wait for response before updating visuals
         sendChunkUpdate(cx, cz, chunkDataStore[key]);
 
-        // Update affected chunks with PRIORITY
-        const chunksToUpdate = new Set();
-        chunksToUpdate.add(key);
+        // Also update neighboring chunks when we modify an edge block
+        const neighborsToUpdate = [];
         
-        // Add neighboring chunks if we're on a boundary
-        if (localX === 0 && cx > 0) chunksToUpdate.add(`${cx-1},${cz}`);
-        if (localX === CHUNK_SIZE - 1 && cx < WORLD_CHUNK_COUNT - 1) chunksToUpdate.add(`${cx+1},${cz}`);
-        if (localZ === 0 && cz > 0) chunksToUpdate.add(`${cx},${cz-1}`);
-        if (localZ === CHUNK_SIZE - 1 && cz < WORLD_CHUNK_COUNT - 1) chunksToUpdate.add(`${cx},${cz+1}`);
+        // Check if block is on chunk boundaries
+        if (localX === 0 && cx > 0) {
+            const leftKey = `${cx-1},${cz}`;
+            if (chunkDataStore[leftKey]) neighborsToUpdate.push([cx-1, cz]);
+        }
+        if (localX === CHUNK_SIZE - 1 && cx < WORLD_CHUNK_COUNT - 1) {
+            const rightKey = `${cx+1},${cz}`;
+            if (chunkDataStore[rightKey]) neighborsToUpdate.push([cx+1, cz]);
+        }
+        if (localZ === 0 && cz > 0) {
+            const backKey = `${cx},${cz-1}`;
+            if (chunkDataStore[backKey]) neighborsToUpdate.push([cx, cz-1]);
+        }
+        if (localZ === CHUNK_SIZE - 1 && cz < WORLD_CHUNK_COUNT - 1) {
+            const frontKey = `${cx},${cz+1}`;
+            if (chunkDataStore[frontKey]) neighborsToUpdate.push([cx, cz+1]);
+        }
 
-        // Update all affected chunks with PRIORITY (modified chunks update first!)
-        for (const chunkKey of chunksToUpdate) {
-            const [updateCx, updateCz] = chunkKey.split(',').map(Number);
-            if (chunkDataStore[chunkKey]) {
-                // Mark as priority and update immediately
-                queuePriorityChunkUpdate(updateCx, updateCz);
+        // Send immediate updates to neighbor chunks
+        for (const [ncx, ncz] of neighborsToUpdate) {
+            const nKey = `${ncx},${ncz}`;
+            if (chunkDataStore[nKey]) {
+                sendChunkUpdate(ncx, ncz, chunkDataStore[nKey]);
             }
         }
     }
@@ -2316,7 +2376,7 @@
             const infoElement = document.getElementById('info');
             infoElement.innerHTML = `
                 <div style="background: rgba(0,0,0,0.7); padding: 8px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace;">
-                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.10</div>
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">Wonder World - Alpha.10.0.1</div>
                     <div style="margin-top: 4px; font-size: 10px; color: #cccccc;">Press F3 to toggle debug info</div>
                 </div>
             `;
