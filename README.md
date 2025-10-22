@@ -1,4 +1,4 @@
-# Wonder-World
+# Wonder-World [(Play it here!)](https://interlinked-creations.github.io/Wonder-World/)
 
 Wonder World is a fantasy world full of magical items and creatures. Your goal in "Wonder World: Version Alpha" is to find all the newest quirks added to the game. Not much, I know, but like I said, it's Version Alpha.
 
