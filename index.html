@@ -400,6 +400,8 @@
                 const blockData = packedBlocks.blocks[blockName];
                 if (blockData.properties) {
                     blockColors[blockName] = blockData.properties;
+                    // Store block type for mesh/structure distinction
+                    blockColors[blockName].blockType = blockData.type || 'solid';
                     console.log(`Loaded block ${blockName}:`, blockColors[blockName]);
                 }
             });
@@ -414,6 +416,9 @@
         
         // Load textures after all block data is ready
         loadBlockTextures();
+        
+        // Initialize workers with constants and seed after blocks are loaded
+        initializeWorkers();
     }
     
     // Utility functions for game pack management
@@ -549,6 +554,8 @@
     const VISIBLE_RADIUS = 12;      // how many chunks around player to keep loaded
     const MAX_CHUNKS_PER_FRAME = 8; // throttle worker requests per frame (increased for faster loading)
     const NUM_WORKERS = 12;          // Use multiple workers for parallel chunk generation
+    const WORLD_SEED = 'WonderWorldSeed'; // Seed for deterministic world generation
+    const SEA_LEVEL = 61;            // Sea level for terrain generation
 
     // Loading screen elements and state
     const loadingScreenEl = document.getElementById('loading-screen');
@@ -699,8 +706,25 @@
             CHUNK_SIZE,
             WORLD_HEIGHT,
             BLOCK_TYPES,
+            SEA_LEVEL,
+            seed: WORLD_SEED,
             blockColors: getSerializableBlockProperties(blockColors)
         };
+    }
+    
+    // Initialize all workers with constants and seed
+    function initializeWorkers() {
+        const constants = getWorkerConstants();
+        
+        for (let i = 0; i < NUM_WORKERS; i++) {
+            chunkWorkers[i].postMessage({
+                type: 'init',
+                constants: constants,
+                seed: WORLD_SEED
+            });
+        }
+        
+        console.log(`Initialized ${NUM_WORKERS} chunk workers with seed: ${WORLD_SEED}`);
     }
 
     // Function to load textures for all blocks
@@ -1524,6 +1548,7 @@
                 seeThrough: props.seeThrough || false,
                 sideRendering: props.sideRendering || "one",
                 color: props.color,
+                blockType: props.blockType || 'solid', // Pass block type to worker
                 // Include face information for proper geometry separation
                 faces: props.faces ? Object.keys(props.faces).reduce((faceObj, faceName) => {
                     faceObj[faceName] = {
