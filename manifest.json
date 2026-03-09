@@ -1,8 +1,4 @@
 {
   "InterlinkedCreations_Version": "Alpha.10.0.2-Test",
-  "cover": "app.png",
-  "creator": "Alex Fischer",
-  "yearCreated": "2025",
-  "description": "Test Description",
-  "tags": ["test"]
+  "cover": "app.png"
 }
